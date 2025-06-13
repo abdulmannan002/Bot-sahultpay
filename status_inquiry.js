@@ -14,7 +14,7 @@ app.get("/", (req, res) => {
 });
 
 // Replace with your bot token
-const BOT_TOKEN = "7974668426:AAGVRkkxj0JD9RKrpmb2PUCxJdBWGS3fA-k";
+const BOT_TOKEN = "7612180485:AAH6oc0pINwT3g9aP5VWdJcGoAafTiFB_7E";
 
 // Create a bot instance
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });

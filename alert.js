@@ -16,7 +16,7 @@ app.get("/", (req, res) => {
 })
 
 // Telegram configuration
-const TELEGRAM_BOT_TOKEN = "7612180485:AAH6oc0pINwT3g9aP5VWdJcGoAafTiFB_7E";
+const TELEGRAM_BOT_TOKEN = "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU";
 const TELEGRAM_USER_ID = '-1002662637300';
 
 // API endpoints

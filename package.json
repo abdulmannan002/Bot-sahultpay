@@ -1,0 +1,26 @@
+{
+  "name": "bots",
+  "version": "1.0.0",
+  "description": "SahulatPay transaction processing and Telegram bots",
+  "main": "index.js",
+  "scripts": {
+    "start:callback": "node call_back.js",
+    "start:failed": "node Transaction_failed.js",
+    "start:pending": "node transcation_pending.js",
+    "start:is_pending": "node transcation_is_pending.js",
+    "start:balance": "node balance_inquiry.js",
+    "start:alert": "node alert.js",
+    "start:payout": "node payout_pending.js",
+    "start:status": "node status_inquiry.js"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "node-schedule": "^2.1.1",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}

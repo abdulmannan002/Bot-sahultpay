@@ -63,14 +63,15 @@ async function fetchTransactions(url) {
 }
 
 // Function to filter Easypaisa transactions
+// Function to filter Easypaisa transactions
 function filterEasypaisaTransactions(transactions) {
-    return transactions.length > 0 ? transactions.filter(txn => txn.providerDetails?.data[0]?.name === "Payeasyparty") : [];
+    return transactions.filter(txn => txn.providerDetails?.name === "Easypaisa");
 }
 
 // Function to filter JazzCash transactions
 function filterJazzCashTransactions(transactions) {
-    return transactions.length > 0 ? transactions.filter(txn => txn.providerDetails?.data[0]?.type === "PayPalCash") : [];
-});
+    return transactions.filter(txn => txn.providerDetails?.name === "JazzCash");
+}
 
 // Function to calculate transaction stats
 function calculateTransactionStats(transactions) {

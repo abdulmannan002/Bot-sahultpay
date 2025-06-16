@@ -249,10 +249,19 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         await bot.sendMessage(chatId, `Error checking status for transaction ${merchantTransactionId}. Please try again later.`);
       }
     } else {
-      // For payouts, if not completed, mark as failed
-      await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
-      console.log(`Payout ${merchantTransactionId} marked as failed.`);
-      await bot.sendMessage(chatId, `Payout ${merchantTransactionId}: Failed.`);
+      // Handle payout status
+      if (status === "failed") {
+        //await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
+        console.log(`Payout ${merchantTransactionId} marked as failed.`);
+        await bot.sendMessage(chatId, `Payout status ${merchantTransactionId}: Failed`);
+      } else if (status === "pending") {
+        console.log(`Payout ${merchantTransactionId} is pending.`);
+        await bot.sendMessage(chatId, `Payout status ${merchantTransactionId}: Pending`);
+      } else {
+        //await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
+        console.log(`Payout ${merchantTransactionId} marked as failed due to unknown status.`);
+        await bot.sendMessage(chatId, `Payout ${merchantTransactionId}: Failed.`);
+      }
     }
   } catch (error) {
     console.error(`Error handling ${type} for order ${order}:`, error.message);

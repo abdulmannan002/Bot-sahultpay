@@ -1,10 +1,10 @@
 const axios = require("axios");
 const express = require("express");
 const TelegramBot = require("node-telegram-bot-api");
-const retry = require("axios-retry"); // Add axios-retry for retry logic
+const dotenv = require("dotenv");
 
 // Load environment variables
-require("dotenv").config();
+dotenv.config();
 
 // Initialize Express app
 const app = express();
@@ -19,7 +19,7 @@ app.get("/", (req, res) => {
 });
 
 // Bot configuration
-const BOT_TOKEN = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN_HERE";
+const BOT_TOKEN = process.env.BOT_TOKEN || "7974668426:AAGVRkkxj0JD9RKrpmb2PUCxJdBWGS3fA-k";
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 // API URLs
@@ -31,25 +31,76 @@ const PAYOUT_API_URL = `${API_BASE_URL}/disbursement/tele`;
 const PAYOUT_CALLBACK_API_URL = `${API_BACKOFFICE_URL}/backoffice/payout-callback`;
 const FAIL_API_URL = `${API_BACKOFFICE_URL}/backoffice/fail-transactions/tele`;
 
-// Configure axios with retries and timeout
+// Configure axios with timeouts
 const axiosInstance = axios.create({
   timeout: 10000, // 10-second timeout
 });
-retry(axiosInstance, {
-  retries: 3, // Retry up to 3 times
-  retryDelay: (retryCount) => retryCount * 1000, // Exponential backoff (1s, 2s, 3s)
-  retryCondition: (error) => {
-    // Retry on network errors or 5xx status codes
-    return axios.isCancel(error) || error.code === "ECONNABORTED" || (error.response && error.response.status >= 500);
-  },
-});
+
+// Configure axios-retry
+let axiosRetry;
+try {
+  axiosRetry = require("axios-retry").default; // Use .default for CommonJS
+  axiosRetry(axiosInstance, {
+    retries: 3,
+    retryDelay: (retryCount) => retryCount * 1000,
+    retryCondition: (error) => {
+      return axios.isCancel(error) || error.code === "ECONNABORTED" || (error.response && error.response.status >= 500);
+    },
+  });
+  console.log("axios-retry configured successfully");
+} catch (error) {
+  console.error("Failed to configure axios-retry:", error.message);
+  console.log("Continuing without retry logic");
+}
 
 // Merchant ID to UUID mapping
 const uidMap = {
-  // THINK TECH CONSULTANCY
   87: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
   88: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
-  // ... (other mappings remain unchanged)
+  89: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  90: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  91: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  92: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  93: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  94: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  96: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  97: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  98: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  99: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  100: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  101: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  103: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  104: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  105: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  106: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  107: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  108: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  109: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  110: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  111: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  112: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  113: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  114: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  115: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  119: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  126: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  127: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  128: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  129: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  130: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  131: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  132: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  133: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  134: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  135: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  136: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  137: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
+  138: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
+  139: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
+  140: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
+  7: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  11: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  32: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
   27: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
 };
 
@@ -69,7 +120,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       ? `${API_BASE_URL}/transactions/tele?merchantTransactionId=${order}`
       : `${PAYOUT_API_URL}?merchantTransactionId=${order}`;
 
-    // Make API request with retry
+    // Make API request
     let response;
     try {
       response = await axiosInstance.get(apiUrl);
@@ -160,7 +211,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               inquiryResponse = await axiosInstance.post(inquiryUrl, { transactionId: merchantTransactionId });
             } else {
               console.error(`No UID found for transaction ${merchantTransactionId}`);
-              await bot.sendMessage(chatId, `No merchant mapping found for transaction ${merchantTransactionId}.`);
+              await bot.sendMessage(chatId, `Nomerchant mapping found for transaction ${merchantTransactionId}.`);
               return;
             }
           }

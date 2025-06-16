@@ -24,7 +24,7 @@ const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 // API URLs
 const API_BASE_URL = process.env.API_BASE_URL || "https://server.sahulatpay.com";
-const API_BACKOFFICE_URL = process.env.API_BACKOFFICE_URL || "https://api.sahulatpay.com";
+const API_BACKOFFICE_URL = process.env.API_BACKOFFICE_URL || "https://server.sahulatpay.com";
 const CALLBACK_API_URL = `${API_BASE_URL}/backoffice/payin-callback`;
 const SETTLE_API_URL = `${API_BASE_URL}/backoffice/settle-transactions/tele`;
 const PAYOUT_API_URL = `${API_BASE_URL}/disbursement/tele`;
@@ -105,6 +105,8 @@ const uidMap = {
 };
 
 // Function to handle transactions or payouts
+
+
 const handleTransactionAndPayout = async (chatId, order, type = "transaction") => {
   try {
     console.log(`Starting ${type} handling for order: ${order}`);
@@ -116,9 +118,16 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Determine API URL based on type
-    const apiUrl = type === "transaction"
-      ? `${API_BASE_URL}/transactions/tele?merchantTransactionId=${order}`
-      : `${PAYOUT_API_URL}?merchantTransactionId=${order}`;
+    let apiUrl;
+    if (type === "transaction") {
+      apiUrl = `https://server.sahulatpay.com/transactions/tele?merchantTransactionId=${order}`;
+    } else if (type === "payout") {
+      apiUrl = `${PAYOUT_API_URL}?merchantTransactionId=${order}`;
+    } else {
+      console.error("Invalid type specified.");
+      await bot.sendMessage(chatId, "Invalid transaction type.");
+      return;
+    }
 
     // Make API request
     let response;

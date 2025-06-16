@@ -64,14 +64,19 @@ async function fetchTransactions(url) {
 
 // Function to filter Easypaisa transactions
 // Function to filter Easypaisa transactions
+// Function to filter Easypaisa transactions
 function filterEasypaisaTransactions(transactions) {
-    return transactions.filter(txn => txn.providerDetails?.name === "Easypaisa");
+    const filtered = transactions.length > 0 ? transactions.filter(txn => txn.providerDetails?.data[0]?.name === "Easypaisa") : [];
+    console.log(`Filtered Easypaisa Transactions: ${filtered.length}`);
+    return filtered;
 }
 
 // Function to filter JazzCash transactions
 function filterJazzCashTransactions(transactions) {
-    return transactions.filter(txn => txn.providerDetails?.name === "JazzCash");
-}
+    const filtered = transactions.length > 0 ? transactions.filter(txn => txn.providerDetails?.data[0]?.type === "JazzCash") : [];
+    console.log(`Filtered JazzCash Transactions: ${filtered.length}`);
+    return filtered;
+};
 
 // Function to calculate transaction stats
 function calculateTransactionStats(transactions) {

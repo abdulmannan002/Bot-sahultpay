@@ -1,5 +1,5 @@
 const axios = require('axios');
-const dotenv = require('dotenv');
+const dotenv = require('dotenv')
 const express = require('express');
 
 dotenv.config();
@@ -7,25 +7,25 @@ dotenv.config();
 const app = express();
 const PORT = process.env.ALERT_PORT || 4005;
 
-app.listen(PORT, () => {
-    console.log(`Example app listening on port ${PORT}`);
-});
+app.listen(PORT, (req,res) => {
+    console.log(`Example app listening on port ${PORT}`)
+})
 
 app.get("/", (req, res) => {
-    return res.status(200).json({ status: "success" });
-});
+    return res.status(200).json({status: "success"})
+})
 
 // Telegram configuration
-const TELEGRAM_BOT_TOKEN = "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU";
-const TELEGRAM_USER_ID = '-1002662637300';
+const TELEGRAM_BOT_TOKEN = "7612180485:AAH6oc0pINwT3g9aP5VWdJcGoAafTiFB_7E";
+const TELEGRAM_USER_ID = '-1002309396691';
 
 // API endpoints
-const API_URL_ALL = 'https://server.sahulatpay.com/transactions/tele/last-15-mins';
+const API_URL_ALL = 'https://server.sahulatpay.com/transactions/tele/last-3-mins';
 const MERCHANTS = {
-    51: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=51', // Monetix
-    5: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=5',
-    16: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=16',
-    451: 'https://server.sahulatpay.com/transactions/tele/last-4-mins?merchantId=451'   // First pay
+    // 51: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=51', // Monetix
+    // 5: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=5',
+    // 16: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=16',
+    451: 'https://server.sahulatpay.com/transactions/tele/last-4-mins?merchantId=451'  // Add more as needed
 };
 
 // Function to fetch transactions
@@ -100,30 +100,26 @@ async function sendConsolidatedAlerts(data) {
     }
 
     await sendTelegramMessage(message);
+    await new Promise(resolve => setTimeout(resolve, 60 * 1000)); // Wait 60 seconds
+    console.log("⚠️ Stopping alerts until next cycle.");
 }
 
 // Main monitoring function
 async function monitorTransactions() {
-    // Initialize global timing variables if not already set
-    if (!global.firstAlertTime) {
-        global.firstAlertTime = Date.now();
-        global.lastAlertSent = Date.now();
-    }
-
     while (true) {
         const data = {};
 
-        // Fetch all transactions
-        const allTransactions = await fetchTransactions(API_URL_ALL);
-        data["All Transactions"] = calculateTransactionStats(allTransactions);
+        // // All Transactions
+        // const allTransactions = await fetchTransactions(API_URL_ALL);
+        // data["All Transactions"] = calculateTransactionStats(allTransactions);
 
-        // All Easypaisa transactions
-        const allEasypaisaTransactions = filterEasypaisaTransactions(allTransactions);
-        data["All Easypaisa"] = calculateTransactionStats(allEasypaisaTransactions);
+        // // All Easypaisa Transactions
+        // const allEasypaisaTransactions = filterEasypaisaTransactions(allTransactions);
+        // data["All Easypaisa"] = calculateTransactionStats(allEasypaisaTransactions);
 
-        // All JazzCash transactions
-        const allJazzCashTransactions = filterJazzCashTransactions(allTransactions);
-        data["All JazzCash"] = calculateTransactionStats(allJazzCashTransactions);
+        // // All JazzCash Transactions
+        // const allJazzCashTransactions = filterJazzCashTransactions(allTransactions);
+        // data["All JazzCash"] = calculateTransactionStats(allJazzCashTransactions);
 
         // Merchant-specific transactions
         for (const [merchantId, url] of Object.entries(MERCHANTS)) {
@@ -131,9 +127,7 @@ async function monitorTransactions() {
             const merchantEasypaisaTransactions = filterEasypaisaTransactions(merchantTransaction);
             const merchantJazzCashTransactions = filterJazzCashTransactions(merchantTransaction);
 
-            let merchantName = `Merchant ${merchantId}`;
-            if (merchantId === "51") merchantName = "Monetix";
-            if (merchantId === "451") merchantName = "First pay";
+            const merchantName = merchantId === "451" ? "FIRSTPAY" : `Merchant ${merchantId}`;
             if (merchantEasypaisaTransactions.length > 0) {
                 data[`${merchantName} Easypaisa`] = calculateTransactionStats(merchantEasypaisaTransactions);
             }
@@ -142,24 +136,17 @@ async function monitorTransactions() {
             }
         }
 
-        // Log transaction success rates
         console.log("Transaction Success Rates:");
         for (const [type, { successRate, total, completed, failed, pending }] of Object.entries(data)) {
             console.log(`${type}: Success Rate = ${successRate.toFixed(2)}%, Total = ${total}, Completed = ${completed}, Failed = ${failed}, Pending = ${pending}`);
         }
 
-        // Check if 15 minutes have passed since the first alert or last alert
-        const now = Date.now();
-        const minutesSinceFirst = (now - global.firstAlertTime) / (60 * 1000);
-        const minutesSinceLast = (now - global.lastAlertSent) / (60 * 1000);
-
-        if (minutesSinceFirst >= 15 && minutesSinceLast >= 15) {
+        // Check if any success rate is below 100% or 0% with no transactions
+        if (Object.values(data).some(d => d.successRate < 100 || (d.successRate === 0 && d.total === 0))) {
             await sendConsolidatedAlerts(data);
-            global.lastAlertSent = Date.now();
         }
 
-        // Wait 3 minutes before the next check
-        await new Promise(resolve => setTimeout(resolve, 15 * 60 * 1000));
+        await new Promise(resolve => setTimeout(resolve, 3 * 60 * 1000)); // Wait 10 minutes
     }
 }
 

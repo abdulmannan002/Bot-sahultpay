@@ -107,7 +107,7 @@ async function sendTelegramMessage(message) {
             request: error.request ? 'Request was made but no response received' : null
         });
     }
-});
+};
 
 // Function to send consolidated Telegram alerts
 async function sendConsolidatedAlerts(data) {
@@ -161,7 +161,7 @@ async function monitorTransactions() {
         data.transactions;
 
         // All JazzCash transactions
-        const allJazzCashTransactions = filterJazzCashTransactions(allTransactions || []));
+        const allJazzCashTransactions = filterJazzCashTransactions(allTransactions || []);
         data["All JazzCash"] = calculateTransactionStats(allJazzCashTransactions);
 
         // Merchant-specific transactions

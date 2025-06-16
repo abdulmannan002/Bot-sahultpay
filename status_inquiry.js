@@ -168,7 +168,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}`);
       } catch (error) {
         console.error("Error calling callback API:", error.response?.data || error.message);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed, but status update failed. TxnID: ${txn_id}`);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id}`);
       }
       return;
     }

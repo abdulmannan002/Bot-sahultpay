@@ -24,6 +24,10 @@ const config = {
     acknowledgment: {
         retries: 3,
         timeout: 120000 // 2 minutes
+    },
+    telegramRetry: {
+        maxRetries: 5,
+        delay: 10000 // 10 seconds for conflict retries
     }
 };
 
@@ -50,15 +54,27 @@ const canvas = new ChartJSNodeCanvas({ width: 800, height: 600 });
 // Global offset for Telegram message polling
 let lastUpdateId = 0;
 
-// Delete Telegram webhook
+// Delete and verify Telegram webhook
 async function deleteWebhook() {
     try {
-        const res = await telegramLimiter.schedule(() =>
+        // Delete webhook
+        const deleteRes = await telegramLimiter.schedule(() =>
             axios.get(`https://api.telegram.org/bot${config.telegram.botToken}/deleteWebhook`)
         );
-        logger.info("Webhook deleted", { response: res.data });
+        logger.info("Webhook deleted", { response: deleteRes.data });
+
+        // Verify webhook status
+        const infoRes = await telegramLimiter.schedule(() =>
+            axios.get(`https://api.telegram.org/bot${config.telegram.botToken}/getWebhookInfo`)
+        );
+        if (infoRes.data.result.url) {
+            logger.warn("Webhook still active after deletion", { webhookInfo: infoRes.data.result });
+            await sendTelegramMessage("⚠️ *Warning*: Telegram webhook is still active. Please check bot configuration or contact admin.");
+        } else {
+            logger.info("Webhook verified as deleted", { webhookInfo: infoRes.data.result });
+        }
     } catch (err) {
-        logger.error("Error deleting webhook", {
+        logger.error("Error managing webhook", {
             error: { message: err.message, code: err.code, response: err.response?.data }
         });
     }
@@ -178,7 +194,7 @@ async function sendChart(statsMap) {
 function generateReportMessage(data, serverDown = false) {
     let message = "🚨 *Transaction Success Rate Report* 🚨\n\n";
     if (serverDown) {
-        message += "⚠️ *Server Down*: API is unreachable. Retrying every 1 minute.\n\n";
+        message += "⚠️ *Server Down*: API is unreachable or returned no data. Retrying every 1 minute.\n\n";
     }
     let hasApiError = Object.values(data).every(s => s.total === 0 && s.successRate === 0);
     for (const [type, stats] of Object.entries(data)) {
@@ -232,52 +248,74 @@ async function handleUpdateCommand(label, url, provider = null) {
 // Listen for Telegram commands
 async function checkUserCommands() {
     const url = `https://api.telegram.org/bot${config.telegram.botToken}/getUpdates?offset=${lastUpdateId + 1}`;
-    try {
-        const res = await telegramLimiter.schedule(() =>
-            pRetry(() => axios.get(url), { retries: 2, minTimeout: 2000 })
-        );
-        const updates = res.data.result;
-        let stopAlerts = false;
+    let retryCount = 0;
+    while (retryCount < config.telegramRetry.maxRetries) {
+        try {
+            const res = await telegramLimiter.schedule(() =>
+                pRetry(() => axios.get(url, { timeout: 10000 }), { 
+                    retries: 2, 
+                    minTimeout: 5000,
+                    onFailedAttempt: err => {
+                        if (err.error.code === 'ETIMEDOUT') {
+                            logger.warn("Telegram request timed out. Retrying...", {
+                                attempt: err.attemptNumber
+                            });
+                        }
+                    }
+                })
+            );
+            const updates = res.data.result;
+            let stopAlerts = false;
 
-        for (const update of updates) {
-            lastUpdateId = update.update.update_id;
-            const text = update.message?.text?.trim();
-            const userChat = update.message?.chat?.id;
-            if (userChat != config.telegram.userId || !text) continue;
+            for (const update of updates) {
+                lastUpdateId = update.update_id;
+                const text = update.message?.text?.trim();
+                const userChat = update.message?.chat?.id;
+                if (userChat != config.telegram.userId || !text) continue;
 
-            if (text === "/check" || text === "/check@Devtectalertbot") {
-                logger.info("Alert acknowledged by user");
-                stopAlerts = true;
-            } else if (text.startsWith("/update ")) {
-                const merchantId = text.split(" ")[1];
-                const url = config.api.baseUrl + (config.api.merchants[merchantId] || "");
-                if (config.api.merchants[merchantId]) {
-                    const label = merchantId === "51" ? "Monetix Easypaisa" : `Merchant ${merchantId} Easypaisa`;
-                    await handleUpdateCommand(label, url, "Easypaisa");
-                } else {
-                    await sendTelegramMessage(`❌ Invalid Merchant ID.\nAvailable: ${Object.keys(config.api.merchants).join(", ")}`);
+                if (text === "/check" || text === "/check@Devtectalertbot") {
+                    logger.info("Alert acknowledged by user");
+                    stopAlerts = true;
+                } else if (text.startsWith("/update ")) {
+                    const merchantId = text.split(" ")[1];
+                    const url = config.api.baseUrl + (config.api.merchants[merchantId] || "");
+                    if (config.api.merchants[merchantId]) {
+                        const label = merchantId === "51" ? "Monetix Easypaisa" : `Merchant ${merchantId} Easypaisa`;
+                        await handleUpdateCommand(label, url, "Easypaisa");
+                    } else {
+                        await sendTelegramMessage(`❌ Invalid Merchant ID.\nAvailable: ${Object.keys(config.api.merchants).join(", ")}`);
+                    }
+                } else if (text === "/updateeasy") {
+                    await handleUpdateCommand("All Easypaisa", config.api.baseUrl, "Easypaisa");
+                } else if (text === "/updatejazz") {
+                    await handleUpdateCommand("All JazzCash", config.api.baseUrl, "JazzCash");
+                } else if (text === "/updateall") {
+                    await handleUpdateCommand("All Transactions", config.api.baseUrl);
                 }
-            } else if (text === "/updateeasy") {
-                await handleUpdateCommand("All Easypaisa", config.api.baseUrl, "Easypaisa");
-            } else if (text === "/updatejazz") {
-                await handleUpdateCommand("All JazzCash", config.api.baseUrl, "JazzCash");
-            } else if (text === "/updateall") {
-                await handleUpdateCommand("All Transactions", config.api.baseUrl);
             }
-        }
 
-        return stopAlerts;
-    } catch (err) {
-        if (err.response?.status === 409) {
-            logger.warn("Conflict detected. Retrying...");
-            await new Promise(r => setTimeout(r, 5000));
-            return await checkUserCommands();
+            return stopAlerts;
+        } catch (err) {
+            if (err.response?.status === 409) {
+                retryCount++;
+                logger.warn("Conflict detected. Retrying...", { retryCount, maxRetries: config.telegramRetry.maxRetries });
+                if (retryCount >= config.telegramRetry.maxRetries) {
+                    logger.error("Max retries reached for Telegram conflict. Possible multiple bot instances.", {
+                        error: { message: err.message, code: err.code, response: err.response?.data }
+                    });
+                    await sendTelegramMessage("⚠️ *Error*: Telegram conflicts detected. Multiple bot instances may be running. Please check bot configuration.");
+                    return false;
+                }
+                await new Promise(r => setTimeout(r, config.telegramRetry.delay));
+                continue;
+            }
+            logger.error("Telegram error", {
+                error: { message: err.message, code: err.code, response: err.response?.data, request: err.request?.path }
+            });
+            return false;
         }
-        logger.error("Telegram error", {
-            error: { message: err.message, code: err.code, response: err.response?.data }
-        });
-        return false;
     }
+    return false;
 }
 
 // Main monitoring loop

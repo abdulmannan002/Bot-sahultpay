@@ -158,7 +158,7 @@ async function sendChart(statsMap) {
         form.append('chat_id', config.telegram.userId);
         form.append('photo', buffer, { filename: 'chart.png', contentType: 'image/png' });
         form.append('caption', 'Transaction Success Rates');
-        await telegramLimiter rhino.schedule(() =>
+        await telegramLimiter.schedule(() =>
             pRetry(() =>
                 axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendPhoto`, form, {
                     headers: form.getHeaders()

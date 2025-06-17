@@ -237,7 +237,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
           console.log(`Transaction ${merchantTransactionId} marked as completed.`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.`);
-        } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatusCode === 500) {
+        } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
           await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
           console.log(`Transaction ${merchantTransactionId} marked as failed.`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);

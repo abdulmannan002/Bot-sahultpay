@@ -1,53 +1,81 @@
 const axios = require('axios');
+const pRetry = require('p-retry');
+const Bottleneck = require('bottleneck');
+const winston = require('winston');
+const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 
-// Telegram configuration
-const TELEGRAM_BOT_TOKEN = "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU";
-const TELEGRAM_USER_ID = '-1002662637300';
-
-// API endpoints
-const API_URL_ALL = 'https://server.sahulatpay.com/transactions/tele/last-15-mins';
-const MERCHANTS = {
-    51: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=51', // Monetix
-    451: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=451',
-    16: 'https://server.sahulatpay.com/transactions/tele/last-15-mins?merchantId=16'   // Add more as needed
+// Configuration
+const config = {
+    telegram: {
+        botToken: "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU",
+        userId: '-1002662637300'
+    },
+    api: {
+        baseUrl: 'https://server.sahulatpay.com/transactions/tele/last-15-mins',
+        merchants: {
+            51: '?merchantId=51',
+            451: '?merchantId=451',
+            16: '?merchantId=16'
+        }
+    },
+    monitorInterval: 600000, // 10 minutes
+    acknowledgment: {
+        retries: 3,
+        timeout: 120000 // 2 minutes
+    }
 };
 
-// Global offset to track processed Telegram updates
+// Initialize logger
+const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    transports: [
+        new winston.transports.File({ filename: 'monitor.log' }),
+        new winston.transports.Console()
+    ]
+});
+
+// Initialize rate limiter
+const limiter = new Bottleneck({ minTime: 1000 }); // 1 request per second
+
+// Initialize chart renderer
+const canvas = new ChartJSNodeCanvas({ width: 800, height: 600 });
+
+// Global offset for Telegram message polling
 let lastUpdateId = 0;
 
-// Function to delete Telegram webhook
+// Delete Telegram webhook
 async function deleteWebhook() {
     try {
-        const response = await axios.get(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook`);
-        console.log("Webhook deleted:", response.data);
-    } catch (error) {
-        console.error("Error deleting webhook:", error.response?.data || error.message);
+        const res = await axios.get(`https://api.telegram.org/bot${config.telegram.botToken}/deleteWebhook`);
+        logger.info("Webhook deleted", { response: res.data });
+    } catch (err) {
+        logger.error("Error deleting webhook", { error: err.response?.data || err.message });
     }
 }
 
-// Function to fetch transactions
+// Fetch transactions from API
 async function fetchTransactions(url) {
     try {
-        const response = await axios.get(url);
-        return response.data.transactions || [];
-    } catch (error) {
-        console.error(`Error fetching transactions from ${url}: ${error.message}`);
+        const res = await limiter.schedule(() =>
+            pRetry(() => axios.get(url), { retries: 3, minTimeout: 1000 })
+        );
+        return res.data.transactions || [];
+    } catch (err) {
+        logger.error(`Error fetching from ${url}`, { error: err.message });
         return [];
     }
 }
 
-// Function to filter Easypaisa transactions
-function filterEasypaisaTransactions(transactions) {
-    return transactions.filter(txn => txn.providerDetails?.name === "Easypaisa");
-}
+// Filter transactions by provider
+const filterTransactionsByProvider = (transactions, providerName) =>
+    transactions.filter(txn => txn.providerDetails?.name === providerName);
 
-// Function to filter JazzCash transactions
-function filterJazzCashTransactions(transactions) {
-    return transactions.filter(txn => txn.providerDetails?.name === "JazzCash");
-}
-
-// Function to calculate transaction stats
-function calculateTransactionStats(transactions) {
+// Calculate success stats
+function calculateStats(transactions) {
     const total = transactions.length;
     const completed = transactions.filter(txn => txn.status === "completed").length;
     const failed = transactions.filter(txn => txn.status === "failed").length;
@@ -56,205 +84,184 @@ function calculateTransactionStats(transactions) {
     return { total, completed, failed, pending, successRate };
 }
 
-// Function to send Telegram message
-async function sendTelegramMessage(message) {
-    const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+// Send message to Telegram
+async function sendTelegramMessage(text) {
     try {
-        await axios.post(telegramUrl, {
-            chat_id: TELEGRAM_USER_ID,
-            text: message,
+        await axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendMessage`, {
+            chat_id: config.telegram.userId,
+            text,
             parse_mode: 'Markdown'
         });
-        console.log("✅ Message sent to Telegram!");
-    } catch (error) {
-        console.error(`❌ Failed to send Telegram message: ${error.response?.data || error.message}`);
+        logger.info("Telegram message sent", { text });
+    } catch (err) {
+        logger.error("Telegram message failed", { error: err.response?.data || err.message });
     }
 }
 
-// Function to send consolidated Telegram alerts
-async function sendConsolidatedAlerts(data) {
-    let message = "🚨 Transaction Success Rate Report 🚨\n\n";
-
-    for (const [type, stats] of Object.entries(data)) {
-        const { total, completed, failed, pending, successRate } = stats;
-        if (successRate === 0 && total === 0) {
-            message += `⚠️ *${type}*: Server might be down (No response from API)\n`;
-        } else if (successRate < 60) {
-            message += `*${type}* (Below 60%):\n` +
-                       `📊 Success Rate: ${successRate.toFixed(2)}%\n` +
-                       `✅ Completed: ${completed}\n` +
-                       `❌ Failed: ${failed}\n` +
-                       `⏳ Pending: ${pending}\n` +
-                       `📈 Total: ${total}\n\n`;
-        } else {
-            message += `*${type}*:\n` +
-                       `📊 Success Rate: ${successRate.toFixed(2)}%\n` +
-                       `✅ Completed: ${completed}\n` +
-                       `❌ Failed: ${failed}\n` +
-                       `⏳ Pending: ${pending}\n` +
-                       `📈 Total: ${total}\n\n`;
-        }
-    }
-
-    message += "Reply `/check` to stop alerts!";
-    
-    let userAcknowledged = false;
-    for (let i = 0; i < 1 && !userAcknowledged; i++) {
-        await sendTelegramMessage(message);
-        await new Promise(resolve => setTimeout(resolve, 60 * 1000)); // Wait 60 seconds
-        userAcknowledged = await checkUserResponse();
-    }
-
-    if (userAcknowledged) {
-        await sendTelegramMessage("✅ Alerts stopped by user response.");
-    } else {
-        console.log("⚠️ No response from user. Stopping alerts until next cycle.");
-    }
-}
-
-// Function to check user messages for commands
-async function checkUserResponse() {
-    const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}`;
+// Generate and send chart
+async function sendChart(statsMap) {
     try {
-        //console.log("Fetching Telegram updates...");
-        const response = await axios.get(telegramUrl);
-        const updates = response.data.result;
-
-        let stopAlerts = false;
-
-        for (let update of updates) {
-            lastUpdateId = update.update_id; // Update the offset
-            if (update.message && update.message.chat.id == TELEGRAM_USER_ID) {
-                const text = update.message.text;
-                if (text === "/check" || text === "/check@Devtectalertbot") {
-                    console.log("✅ User acknowledged an alert.");
-                    stopAlerts = true;
-                } else if (text.startsWith("/update ")) {
-                    const merchantId = text.split(" ")[1];
-                    if (MERCHANTS[merchantId]) {
-                        console.log(`🔹 User requested update for Merchant ID ${merchantId}`);
-                        const type = merchantId === "51" ? "Monetix Easypaisa" : `Merchant ${merchantId} Easypaisa`;
-                        await handleUpdateCommand(type, MERCHANTS[merchantId], true, "Easypaisa");
-                    } else {
-                        await sendTelegramMessage(`❌ Invalid Merchant ID: ${merchantId}\nAvailable IDs: ${Object.keys(MERCHANTS).join(", ")}`);
-                    }
-                } else if (text === "/updateeasy") {
-                    console.log("🔹 User requested update for All Easypaisa.");
-                    await handleUpdateCommand("All Easypaisa", API_URL_ALL, true, "Easypaisa");
-                } else if (text === "/updatejazz") {
-                    console.log("🔹 User requested update for All JazzCash.");
-                    await handleUpdateCommand("All JazzCash", API_URL_ALL, true, "JazzCash");
-                } else if (text === "/updateall") {
-                    console.log("🔹 User requested update for All Transactions.");
-                    await handleUpdateCommand("All Transactions", API_URL_ALL, false);
+        const chartConfig = {
+            type: 'bar',
+            data: {
+                labels: Object.keys(statsMap),
+                datasets: [{
+                    label: 'Success Rate (%)',
+                    data: Object.values(statsMap).map(stat => stat.successRate),
+                    backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
+                    borderColor: ['#2A87D0', '#E05570', '#E6B800', '#3AA8A8', '#7A52CC', '#E68A00'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true, max: 100, title: { display: true, text: 'Success Rate (%)' } },
+                    x: { title: { display: true, text: 'Transaction Type' } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Transaction Success Rates (Last 15 Minutes)' }
                 }
             }
+        };
+        const buffer = await canvas.renderToBuffer(chartConfig);
+        await axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendPhoto`, {
+            chat_id: config.telegram.userId,
+            photo: buffer,
+            caption: 'Transaction Success Rates'
+        });
+        logger.info("Chart sent to Telegram");
+    } catch (err) {
+        logger.error("Error sending chart", { error: err.response?.data || err.message });
+    }
+}
+
+// Generate report message
+function generateReportMessage(data) {
+    let message = "🚨 *Transaction Success Rate Report* 🚨\n\n";
+    for (const [type, stats] of Object.entries(data)) {
+        const { total, completed, failed, pending, successRate } = stats;
+        if (total === 0 && successRate === 0) {
+            message += `⚠️ *${type}*: No data (Possible API issue)\n`;
+        } else {
+            const alertEmoji = successRate < 60 ? "🔻" : "✅";
+            message += `*${type}* ${alertEmoji}:\n` +
+                `📊 Success Rate: ${successRate.toFixed(2)}%\n` +
+                `✅ Completed: ${completed}\n❌ Failed: ${failed}\n` +
+                `⏳ Pending: ${pending}\n📈 Total: ${total}\n\n`;
         }
+    }
+    message += "Reply with `/check` to acknowledge.";
+    return message;
+}
+
+// Send consolidated alert
+async function sendAlert(data) {
+    const message = generateReportMessage(data);
+    await sendTelegramMessage(message);
+    await sendChart(data); // Send chart with alert
+    let acknowledged = false;
+    for (let i = 0; i < config.acknowledgment.retries && !acknowledged; i++) {
+        await new Promise(r => setTimeout(r, config.acknowledgment.timeout));
+        acknowledged = await checkUserCommands();
+    }
+    if (acknowledged) {
+        await sendTelegramMessage("✅ Alerts acknowledged by user.");
+    }
+}
+
+// Handle update commands
+async function handleUpdateCommand(label, url, provider = null) {
+    const allTxns = await fetchTransactions(url);
+    const filteredTxns = provider ? filterTransactionsByProvider(allTxns, provider) : allTxns;
+    const stats = calculateStats(filteredTxns);
+    const msg = `📊 *${label}*:\n` +
+        `✅ Completed: ${stats.completed}\n❌ Failed: ${stats.failed}\n` +
+        `⏳ Pending: ${stats.pending}\n📈 Total: ${stats.total}\n` +
+        `📊 Success Rate: ${stats.successRate.toFixed(2)}%`;
+    await sendTelegramMessage(msg);
+}
+
+// Listen for Telegram commands
+async function checkUserCommands() {
+    const url = `https://api.telegram.org/bot${config.telegram.botToken}/getUpdates?offset=${lastUpdateId + 1}`;
+    try {
+        const res = await axios.get(url);
+        const updates = res.data.result;
+        let stopAlerts = false;
+
+        for (const update of updates) {
+            lastUpdateId = update.update_id;
+            const text = update.message?.text?.trim();
+            const userChat = update.message?.chat?.id;
+            if (userChat != config.telegram.userId || !text) continue;
+
+            if (text === "/check" || text === "/check@Devtectalertbot") {
+                logger.info("Alert acknowledged by user");
+                stopAlerts = true;
+            } else if (text.startsWith("/update ")) {
+                const merchantId = text.split(" ")[1];
+                const url = config.api.baseUrl + (config.api.merchants[merchantId] || "");
+                if (config.api.merchants[merchantId]) {
+                    const label = merchantId === "51" ? "Monetix Easypaisa" : `Merchant ${merchantId} Easypaisa`;
+                    await handleUpdateCommand(label, url, "Easypaisa");
+                } else {
+                    await sendTelegramMessage(`❌ Invalid Merchant ID.\nAvailable: ${Object.keys(config.api.merchants).join(", ")}`);
+                }
+            } else if (text === "/updateeasy") {
+                await handleUpdateCommand("All Easypaisa", config.api.baseUrl, "Easypaisa");
+            } else if (text === "/updatejazz") {
+                await handleUpdateCommand("All JazzCash", config.api.baseUrl, "JazzCash");
+            } else if (text === "/updateall") {
+                await handleUpdateCommand("All Transactions", config.api.baseUrl);
+            }
+        }
+
         return stopAlerts;
-    } catch (error) {
-        if (error.response && error.response.status === 409) {
-            console.warn("⚠️ Conflict detected in getUpdates. Retrying after delay...");
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before retrying
-            return await checkUserResponse(); // Retry
+    } catch (err) {
+        if (err.response?.status === 409) {
+            logger.warn("Conflict detected. Retrying...");
+            await new Promise(r => setTimeout(r, 5000));
+            return await checkUserCommands();
         }
-        console.error("❌ Error checking Telegram messages: ", error.response?.data || error.message);
+        logger.error("Telegram error", { error: err.response?.data || err.message });
         return false;
     }
 }
 
-// Function to handle update commands
-async function handleUpdateCommand(type, url, filterProvider, providerName = null) {
-    const transactions = await fetchTransactions(url);
-    let relevantTransactions = transactions;
-    if (filterProvider) {
-        relevantTransactions = providerName === "Easypaisa" 
-            ? filterEasypaisaTransactions(transactions) 
-            : filterJazzCashTransactions(transactions);
-    }
-    const { total, completed, failed, pending, successRate } = calculateTransactionStats(relevantTransactions);
-    const message = `📊 *${type}* Success Rate Update:\n\n` +
-                    `✅ Success Rate: ${successRate.toFixed(2)}%\n` +
-                    `✅ Completed: ${completed}\n` +
-                    `❌ Failed: ${failed}\n` +
-                    `⏳ Pending: ${pending}\n` +
-                    `📈 Total: ${total}`;
-    await sendTelegramMessage(message);
-}
-
-// Main monitoring function
-async function monitorTransactions() {
-    while (true) {
-        const data = {};
-
-        // All Transactions
-        const allTransactions = await fetchTransactions(API_URL_ALL);
-        data["All Transactions"] = calculateTransactionStats(allTransactions);
-
-        // All Easypaisa Transactions
-        const allEasypaisaTransactions = filterEasypaisaTransactions(allTransactions);
-        data["All Easypaisa"] = calculateTransactionStats(allEasypaisaTransactions);
-
-        // All JazzCash Transactions
-        const allJazzCashTransactions = filterJazzCashTransactions(allTransactions);
-        data["All JazzCash"] = calculateTransactionStats(allJazzCashTransactions);
-
-        // Merchant-specific transactions
-        for (const [merchantId, url] of Object.entries(MERCHANTS)) {
-            const merchantTransaction = await fetchTransactions(url);
-            const merchantEasypaisaTransactions = filterEasypaisaTransactions(merchantTransaction);
-            const merchantJazzCashTransactions = filterJazzCashTransactions(merchantTransaction);
-
-            let merchantName;
-            if (merchantId === "51") {
-                merchantName = "Monetix";
-            } else if (merchantId === "451") {
-                merchantName = "First pay";
-            } else {
-                merchantName = `Merchant ${merchantId}`;
-            }
-            if (merchantEasypaisaTransactions.length > 0) {
-                data[`${merchantName} Easypaisa`] = calculateTransactionStats(merchantEasypaisaTransactions);
-            }
-            if (merchantJazzCashTransactions.length > 0) {
-                data[`${merchantName} JazzCash`] = calculateTransactionStats(merchantJazzCashTransactions);
-            }
-        }
-
-        console.log("Transaction Success Rates:");
-        for (const [type, { successRate, total, completed, failed, pending }] of Object.entries(data)) {
-            console.log(`${type}: Success Rate = ${successRate.toFixed(2)}%, Total = ${total}, Completed = ${completed}, Failed = ${failed}, Pending = ${pending}`);
-        }
-
-        // Check if any success rate is below 100% or 0% with no transactions
-        if (Object.values(data).some(d => d.successRate < 100 || (d.successRate === 0 && d.total === 0))) {
-            await sendConsolidatedAlerts(data);
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 600 * 1000)); // Wait 10 minutes
-    }
-}
-
-// Function to periodically check for user commands
-async function monitorCommands() {
-    while (true) {
-        await checkUserResponse();
-        await new Promise(resolve => setTimeout(resolve, 30 * 1000)); // Check every 30 seconds
-    }
-}
-
-// Start all monitoring tasks concurrently
+// Main monitoring loop
 async function startMonitoring() {
-    console.log("Starting all monitoring tasks...");
-    // Delete webhook to ensure polling works
+    logger.info("Starting monitoring");
     await deleteWebhook();
-    // Add delay to ensure previous instance terminates (helps with nodemon restarts)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    // Ensure only one instance is running (manually check Task Manager or use `taskkill /F /IM node.exe` if needed)
-    Promise.all([
-        monitorTransactions(),
-        monitorCommands()
-    ]).catch(err => console.error("Error in monitoring tasks:", err));
+
+    while (true) {
+        const statsMap = {};
+        const allTxns = await fetchTransactions(config.api.baseUrl);
+        statsMap["All Transactions"] = calculateStats(allTxns);
+        statsMap["All Easypaisa"] = calculateStats(filterTransactionsByProvider(allTxns, "Easypaisa"));
+        statsMap["All JazzCash"] = calculateStats(filterTransactionsByProvider(allTxns, "JazzCash"));
+
+        const merchantTxns = await Promise.all(
+            Object.entries(config.api.merchants).map(([id, query]) => fetchTransactions(config.api.baseUrl + query))
+        );
+
+        Object.entries(config.api.merchants).forEach(([id, query], index) => {
+            const txns = merchantTxns[index];
+            const name = id === "51" ? "Monetix" : id === "451" ? "First Pay" : `Merchant ${id}`;
+            const easypaisa = filterTransactionsByProvider(txns, "Easypaisa");
+            const jazzcash = filterTransactionsByProvider(txns, "JazzCash");
+            if (easypaisa.length) statsMap[`${name} Easypaisa`] = calculateStats(easypaisa);
+            if (jazzcash.length) statsMap[`${name} JazzCash`] = calculateStats(jazzcash);
+        });
+
+        logger.info("Stats calculated", { statsMap });
+
+        const shouldAlert = Object.values(statsMap).some(s => s.successRate < 100 || (s.successRate === 0 && s.total === 0));
+        if (shouldAlert) await sendAlert(statsMap);
+
+        logger.info("Monitoring cycle completed. Waiting 10 minutes...");
+        await new Promise(r => setTimeout(r, config.monitorInterval));
+    }
 }
 
-// Start the bot
-startMonitoring();
+startMonitoring().catch(err => logger.error("Monitoring error", { error: err.message }));

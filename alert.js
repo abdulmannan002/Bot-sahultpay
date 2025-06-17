@@ -1,8 +1,11 @@
 const axios = require('axios');
-const pRetry = require('p-retry');
+// Fix: Correct p-retry import
+const pRetry = require('p-retry').default || require('p-retry');
 const Bottleneck = require('bottleneck');
 const winston = require('winston');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+// Fix: Add FormData for chart sending
+const FormData = require('form-data');
 
 // Configuration
 const config = {
@@ -39,7 +42,7 @@ const logger = winston.createLogger({
 });
 
 // Initialize rate limiter
-const limiter = new Bottleneck({ minTime: 1000 }); // 1 request per second
+const limiter = new Bottleneck({ minTime: 1000 });
 
 // Initialize chart renderer
 const canvas = new ChartJSNodeCanvas({ width: 800, height: 600 });
@@ -61,11 +64,15 @@ async function deleteWebhook() {
 async function fetchTransactions(url) {
     try {
         const res = await limiter.schedule(() =>
-            pRetry(() => axios.get(url), { retries: 3, minTimeout: 1000 })
+            // Fix: Use pRetry correctly with fallback
+            pRetry(() => axios.get(url), { retries: 3, minTimeout: 1000 }).catch(err => {
+                logger.error(`Retry failed for ${url}`, { error: err.message });
+                throw err;
+            })
         );
         return res.data.transactions || [];
     } catch (err) {
-        logger.error(`Error fetching from ${url}`, { error: err.message });
+        logger.error(`Error fetching from ${url}`, { error: err.message, status: err.response?.status });
         return [];
     }
 }
@@ -124,11 +131,14 @@ async function sendChart(statsMap) {
                 }
             }
         };
-        const buffer = await canvas.renderToBuffer(chartConfig);
-        await axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendPhoto`, {
-            chat_id: config.telegram.userId,
-            photo: buffer,
-            caption: 'Transaction Success Rates'
+        const buffer = await canvas.renderToBuffer(chartConfig, 'image/png');
+        // Fix: Use FormData for proper file upload
+        const form = new FormData();
+        form.append('chat_id', config.telegram.userId);
+        form.append('photo', buffer, { filename: 'chart.png', contentType: 'image/png' });
+        form.append('caption', 'Transaction Success Rates');
+        await axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendPhoto`, form, {
+            headers: form.getHeaders()
         });
         logger.info("Chart sent to Telegram");
     } catch (err) {
@@ -139,6 +149,7 @@ async function sendChart(statsMap) {
 // Generate report message
 function generateReportMessage(data) {
     let message = "🚨 *Transaction Success Rate Report* 🚨\n\n";
+    let hasApiError = Object.values(data).every(s => s.total === 0 && s.successRate === 0);
     for (const [type, stats] of Object.entries(data)) {
         const { total, completed, failed, pending, successRate } = stats;
         if (total === 0 && successRate === 0) {
@@ -151,6 +162,10 @@ function generateReportMessage(data) {
                 `⏳ Pending: ${pending}\n📈 Total: ${total}\n\n`;
         }
     }
+    // Fix: Add note for potential script errors
+    if (hasApiError) {
+        message += "⚠️ *Note*: No data received. This may indicate a script error. Check logs for details.\n";
+    }
     message += "Reply with `/check` to acknowledge.";
     return message;
 }
@@ -159,7 +174,7 @@ function generateReportMessage(data) {
 async function sendAlert(data) {
     const message = generateReportMessage(data);
     await sendTelegramMessage(message);
-    await sendChart(data); // Send chart with alert
+    await sendChart(data);
     let acknowledged = false;
     for (let i = 0; i < config.acknowledgment.retries && !acknowledged; i++) {
         await new Promise(r => setTimeout(r, config.acknowledgment.timeout));
@@ -167,6 +182,8 @@ async function sendAlert(data) {
     }
     if (acknowledged) {
         await sendTelegramMessage("✅ Alerts acknowledged by user.");
+    } else {
+        logger.info("No response from user. Stopping alerts until next cycle");
     }
 }
 

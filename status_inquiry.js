@@ -33,18 +33,22 @@ const FAIL_API_URL = `${API_BACKOFFICE_URL}/backoffice/fail-transactions/tele`;
 
 // Configure axios with timeouts
 const axiosInstance = axios.create({
-  timeout: 30000, // 10-second timeout
+  timeout: 45000, // Increased to 45 seconds
 });
 
 // Configure axios-retry
 let axiosRetry;
 try {
-  axiosRetry = require("axios-retry").default; // Use .default for CommonJS
+  axiosRetry = require("axios-retry").default;
   axiosRetry(axiosInstance, {
     retries: 3,
-    retryDelay: (retryCount) => retryCount * 1000,
+    retryDelay: (retryCount) => retryCount * 2000, // Increased delay to 2s, 4s, 6s
     retryCondition: (error) => {
-      return axios.isCancel(error) || error.code === "ECONNABORTED" || (error.response && error.response.status >= 500);
+      return (
+        axios.isCancel(error) ||
+        error.code === "ECONNABORTED" ||
+        (error.response && error.response.status >= 500)
+      );
     },
   });
   console.log("axios-retry configured successfully");
@@ -52,7 +56,6 @@ try {
   console.error("Failed to configure axios-retry:", error.message);
   console.log("Continuing without retry logic");
 }
-
 // Merchant ID to UUID mapping
 const uidMap = {
   87: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
@@ -141,7 +144,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       } else if (error.code === "ECONNABORTED") {
         await bot.sendMessage(chatId, `Transaction ${order} timed out. Please try again.`);
       } else {
-        await bot.sendMessage(chatId, `Error processing transaction ${order}. Please contact support.`);
+        await bot.sendMessage(chatId, `Error processing transaction ${order}`);
       }
       return;
     }
@@ -150,7 +153,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     const transaction = type === "transaction" ? response.data.transactions?.[0] : response.data?.data?.transactions?.[0];
     if (!transaction) {
       console.log(`No ${type} found for order: ${order}`);
-      await bot.sendMessage(chatId, `Transaction ${order} not found. Please check the order ID.`);
+      await bot.sendMessage(chatId, `Transaction ${order} not found in Back-office. Please check the order ID.`);
       return;
     }
 
@@ -259,13 +262,13 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         await bot.sendMessage(chatId, `Payout status ${merchantTransactionId}: Pending`);
       } else {
         //await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
-        console.log(`Payout ${merchantTransactionId} marked as failed due to unknown status.`);
+        console.log(`Payout ${merchantTransactionId} marked as failed.`);
         await bot.sendMessage(chatId, `Payout ${merchantTransactionId}: Failed.`);
       }
     }
   } catch (error) {
     console.error(`Error handling ${type} for order ${order}:`, error.message);
-    await bot.sendMessage(chatId, `Error processing ${type} ${order}. Please contact support.`);
+    await bot.sendMessage(chatId, `Error processing ${type} ${order}`);
   }
 };
 

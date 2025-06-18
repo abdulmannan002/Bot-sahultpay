@@ -1,7 +1,15 @@
-const axios = require("axios");
-const { log } = require("console");
-const { generateRandomBigInt } = require("telegram/Helpers");
+const axios = require('axios');
+const schedule = require('node-schedule');
+const express = require('express')
+const app = express()
+const port = process.env.CALLBACK_PORT || 4000;
 
+app.listen(port, () => {
+    console.log(`Example app listening on port ${port}`)
+})
+app.get('/', (req, res) => {
+  res.send('Payout Pending Service is running.');
+});
 // API URLs for transactions
 const CALLBACK_API_URL = "https://server.sahulatpay.com/backoffice/payout-callback";
 const SETTLE_API_URL = "https://server.sahulatpay.com/backoffice/settle-disbursements/tele";

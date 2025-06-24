@@ -46,7 +46,7 @@ async function processQueue() {
   setTimeout(processQueue, 1000);
 }
 
-const DASHBOARD_API = 'https://api.sahulatpay.com/dashboard/merchant-details';
+const DASHBOARD_API = 'https://server.sahulatpay.com/dashboard/merchant-details';
 
 function getStateKey(msg) {
   const chatId = msg.chat.id;
@@ -102,7 +102,7 @@ bot.on('message', async (msg) => {
             'User-Agent': 'Mozilla/5.0 (compatible; TelegramBot/1.0)',
           },
         }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard API timeout')), 10000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard API timeout')), 100000)),
       ]);
 
       console.log("API response received");

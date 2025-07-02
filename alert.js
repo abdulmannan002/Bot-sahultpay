@@ -14,9 +14,9 @@ const config = {
     api: {
         baseUrl: 'https://server.sahulatpay.com/transactions/tele/last-15-mins',
         merchants: {
-            51: '?merchantId=51',
+            444: '?merchantId=444',
             451: '?merchantId=451',
-            16: '?merchantId=16'
+            49: '?merchantId=49'
         }
     },
     monitorInterval: 600000, // 10 minutes

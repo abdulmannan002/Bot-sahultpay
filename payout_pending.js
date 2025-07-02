@@ -17,7 +17,8 @@ const FAIL_API_URL = "https://server.sahulatpay.com/backoffice/fail-disbursement
 const FETCH_API_URL = "https://server.sahulatpay.com/disbursement/tele/last-15-10-mins?status=pending";
 const uidMap = {
   5: "6d612b47-6405-4237-9b0c-7d639eb960ee", // SASTA TECH SOLUTIONS
-  7: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // DEVINERA TECHNOLOGIES
+  7: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+    9: 'a0eb8ba1-8962-4766-8acb-945fce7dc0c3',// DEVINERA TECHNOLOGIES
 };
 
 // List for transactions
@@ -97,7 +98,7 @@ const handleTransaction = async (order) => {
       // inquiryUrl = `https://server.sahulatpay.com/payment/sjz-disburse-status/${uidMap[Id]}`;
       //   logMessage(`Inquiry URL: ${inquiryUrl}`);
       // inquiryResponse = await axios.post(inquiryUrl,  { originalReferenceId: merchantTransactionId, referenceID: randomBigInt });
-    } else if (status === "pending" && Id === 7 || (status === "failed" && Id === 7)) {
+    } else if (status === "pending" && Id === 7 || Id === 9 ||(status === "failed" && Id === 7 || Id === 9)) {
       await axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
       // const randomBigInt = generateRandomBigInt(100000000000);
       // logMessage(`Processing transaction ${merchantTransactionId} with status ${status}`);

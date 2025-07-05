@@ -85,7 +85,45 @@ const uidMap = {
   113: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
   114: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
   115: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  160: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  161: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  162: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  163: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  164: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  165: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  166: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  167: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  168: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  169: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  170: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  171: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  172: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  173: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  174: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  175: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  176: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  177: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  178: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  179: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  180: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  181: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  182: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  183: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  184: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  185: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
+  186: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
   119: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  149: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  150: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  151: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  152: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  153: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  154: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  155: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  156: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  157: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  158: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  159: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
   126: "6d612b47-6405-4237-9b0c-7d639eb960ee",
   127: "6d612b47-6405-4237-9b0c-7d639eb960ee",
   128: "6d612b47-6405-4237-9b0c-7d639eb960ee",
@@ -101,10 +139,17 @@ const uidMap = {
   138: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
   139: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
   140: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
+  143: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
+  // JazzCash UIDs
   7: "6d612b47-6405-4237-9b0c-7d639eb960ee",
   11: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
   32: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
   27: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
+  // Payfast UIDs
+  5: "22943823-9a2d-4ab2-8d13-9b684ba8058d",
+  6: "2f1bc400-ee52-4091-9e3a-be4de8ecd9b3",
+  7: "2cf2052d-8582-4c92-8482-785df897d523",
+  8: "a32508c3-f480-4bd2-9c8e-76bb3c6ad747",
 };
 
 // Function to handle transactions or payouts
@@ -186,23 +231,34 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Perform status inquiry for transactions (not payouts)
-    if (type === "transaction") {
+    if (type === "transaction" && uidMap) {
       const providerName = transaction.providerDetails?.name?.toLowerCase();
-      let inquiryUrl, inquiryResponse;
+      let inquiryUrl, inquiryResponse, inquiryUid;
 
       try {
         if (providerName === "easypaisa") {
           const easyPaisaMerchantId = transaction.providerDetails?.id;
-          const mappedId = uidMap[easyPaisaMerchantId];
+          let mappedId = uidMap[easyPaisaMerchantId];
 
           if (mappedId) {
+            inquiryUid = mappedId;
+            if ([5, 6, 7, 8].includes(parseInt(easyPaisaMerchantId))) {
+            inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;
+          } else {
             inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${mappedId}?orderId=${order}`;
+          }
             inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
           } else {
-            const uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
+            let uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
             if (uid) {
-              inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`;
-              inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
+              if ([5, 6, 7, 8].includes(parseInt(easyPaisaMerchantId))) {
+                inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;
+              } else {
+                inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`;
+                inquiryResponse = await axiosInstance.get(inquiryUrl, { 
+                  params: { transaction_id: merchantTransactionId } 
+                });
+              }
             } else {
               console.error(`No UID found for transaction ${merchantTransactionId}`);
               await bot.sendMessage(chatId, `No merchant mapping found for transaction ${merchantTransactionId}.`);

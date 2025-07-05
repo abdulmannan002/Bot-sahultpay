@@ -243,7 +243,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           if (mappedId) {
             console.log(`Performing Easypaisa inquiry with UUID: ${mappedId}`);
             inquiryUid = mappedId;
-            if ([5, 6, 7, 8].includes(parseInt(easyPaisaMerchantId))) {
+            if ([5, 6, 8].includes(parseInt(easyPaisaMerchantId))) {
             inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;
           } else {
             inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${mappedId}?orderId=${order}`;
@@ -252,7 +252,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           } else {
             let uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
             if (uid) {
-              if ([5, 6, 7, 8].includes(parseInt(easyPaisaMerchantId))) {
+              if ([5, 6, 8].includes(parseInt(easyPaisaMerchantId))) {
                 inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;
               } else {
                 inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`;

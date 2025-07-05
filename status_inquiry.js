@@ -241,6 +241,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           let mappedId = uidMap[easyPaisaMerchantId];
 
           if (mappedId) {
+            logMessage(`Performing Easypaisa inquiry with UUID: ${mappedId}`);
             inquiryUid = mappedId;
             if ([5, 6, 7, 8].includes(parseInt(easyPaisaMerchantId))) {
             inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;

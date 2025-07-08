@@ -9,7 +9,7 @@ console.log("Environment variables loaded");
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.STATUS_PORT || 4015;
+const PORT = 4015;
 console.log(`Port set to ${PORT}`);
 
 app.listen(PORT, () => {

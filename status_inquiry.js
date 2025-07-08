@@ -271,6 +271,8 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           const mappedId = uidMap[jazzCashMerchantId];
 
           if (mappedId) {
+          console.log(`Performing jazz cash inquiry with UUID: ${mappedId}`);
+
             inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${mappedId}?transactionId=${order}`;
             inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
           } else {

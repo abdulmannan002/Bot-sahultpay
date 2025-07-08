@@ -12,7 +12,8 @@
     "start:alert": "node alert.js",
     "start:payout": "node payout_pending.js",
     "start:status": "node status_inquiry.js",
-    "start:first": "node firstpayalert.js"
+    "start:first": "node firstpayalert.js",
+    "start:ban": "node banstatus.js"
   },
   "dependencies": {
     "axios": "^1.9.0",

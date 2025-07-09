@@ -33,7 +33,7 @@ const API_BASE_URL = 'https://api5.assanpay.com';
 const API_BACKOFFICE_URL = 'https://api5.assanpay.com';
 const CALLBACK_API_URL = `${API_BASE_URL}/api/backoffice/payin-callback`;
 const SETTLE_API_URL = `${API_BASE_URL}/api/backoffice/settle-transactions/tele`;
-const PAYOUT_API_URL = `${API_BASE_URL}/api/disbursement/tele`;
+const PAYOUT_API_URL = `http://localhost:3000/api/disbursement/tele`;
 const PAYOUT_CALLBACK_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/payout-callback`;
 const FAIL_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/fail-transactions/tele`;
 console.log("API URLs configured");

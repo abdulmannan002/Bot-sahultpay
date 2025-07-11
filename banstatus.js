@@ -9,7 +9,7 @@ console.log("Environment variables loaded");
 
 // Initialize Express app
 const app = express();
-const PORT = 4015;
+const PORT = process.env.STATUS_PORT || 4007;
 console.log(`Port set to ${PORT}`);
 
 app.listen(PORT, () => {
@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 });
 
 // Bot configuration
-const BOT_TOKEN = "8022347739:AAFog5fGoF8stzKm44VUb3ut_sYb87mLrJY";
+const BOT_TOKEN = process.env.BOT_TOKEN || "8022347739:AAFog5fGoF8stzKm44VUb3ut_sYb87mLrJY";
 console.log("Bot token retrieved");
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 console.log("Telegram bot initialized with polling");
@@ -32,8 +32,10 @@ console.log("Telegram bot initialized with polling");
 const API_BASE_URL = 'https://api5.assanpay.com';
 const API_BACKOFFICE_URL = 'https://api5.assanpay.com';
 const CALLBACK_API_URL = `${API_BASE_URL}/api/backoffice/payin-callback`;
+const SETTLE_API_URL = `${API_BASE_URL}/api/backoffice/settle-transactions/tele`;
 const PAYOUT_API_URL = `${API_BASE_URL}/api/disbursement/tele`;
 const PAYOUT_CALLBACK_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/payout-callback`;
+const FAIL_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/fail-transactions/tele`;
 console.log("API URLs configured");
 
 // Configure axios with timeouts
@@ -118,7 +120,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Extract transaction data
-    const transaction = type === "transaction" ? response.data.transactions?.[0] : response.data.transactions?.[0];
+    const transaction = type === "transaction" ? response.data.transactions?.[0] : response.data?.data?.transactions?.[0];
     if (!transaction) {
       console.log(`No ${type} found for order: ${order}`);
       await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${order} not found in Back-office. Please check the order ID.`);
@@ -160,44 +162,40 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Perform status inquiry for both transactions and payouts
-    const providerName = transaction.providerDetails?.name?.toLowerCase() || transaction.providerDetails?.sub_name?.toLowerCase();
+    const providerName = transaction.providerDetails?.sub_name?.toLowerCase();
     console.log(`Provider name: ${providerName}`);
     let inquiryUrl, inquiryResponse;
-    let uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
-    console.log(`UID retrieved: ${uid}`);
+    const dalalmartuid = "8e81c7b7-b300-4cbe-99a5-3873ac70949b"
+    const payinxuid = "8f30b115-39bb-4625-965b-dbde0b461527";
 
     try {
-      if (providerName === "bkash") {
-        inquiryUrl = `${API_BACKOFFICE_URL}/api/status-inquiry/${type === "payout" ? "payout" : "payin"}/${uid}`;
-        console.log(`bKash inquiry URL set: ${inquiryUrl}?${type === "payout" ? "payment_id" : "ref"}=${merchantTransactionId}`);
+      if (providerName === "dalalmart") {
+        inquiryUrl = `${API_BACKOFFICE_URL}/api/status-inquiry/${type === "payout" ? "payout" : "payin"}/${dalalmartuid}`;
+        console.log(`dalalmart inquiry URL set: ${inquiryUrl}`);
         inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { [type === "payout" ? "payment_id" : "ref"]: merchantTransactionId } });
-      } else if (providerName === "nagad") {
-        inquiryUrl = `${API_BASE_URL}/api/status-inquiry/${type === "payout" ? "payout" : "payin"}/${uid}`;
-        console.log(`Nagad inquiry URL set: ${inquiryUrl}`);
+      } else if (providerName === "payinx") {
+        inquiryUrl = `${API_BASE_URL}/api/status-inquiry/${type === "payout" ? "payout" : "payin"}/${payinxuid}`;
+        console.log(`payinx inquiry URL set: ${inquiryUrl}`);
         inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { [type === "payout" ? "payment_id" : "ref"]: merchantTransactionId } });
       } else {
         console.error(`No UID found for ${type} ${merchantTransactionId}`);
-        await bot.sendMessage(chatId, `No merchant mapping found for ${type} ${merchantTransactionId}.`);
+        //await bot.sendMessage(chatId, `No merchant mapping found for ${type} ${merchantTransactionId}.`);
         console.log(`Sent no merchant mapping message for ${type} ${merchantTransactionId} to chat ${chatId}`);
         return;
       }
 
       console.log("Inquiry API Response:", JSON.stringify(inquiryResponse.data, null, 2));
-      const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase()|| inquiryResponse?.data?.data?.data?.status.toLowerCase();
-      const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode || inquiryResponse?.data?.data?.data?.statusCode;
-      const FAIL_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/${type === "payout" ? "fail-disbursements" : "fail-transactions"}/tele`;
-      const SETTLE_API_URL = `${API_BASE_URL}/api/backoffice/${type === "payout" ? "settle-disbursements" : "settle-transactions"}/tele`;
-
+      const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase()|| inquiryResponse?.data?.data?.data?.status.toLowerCase() || inquiryResponse?.data?.data?.statusCode;
+      const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
       console.log(`Inquiry status: ${inquiryStatus}, status code: ${inquiryStatusCode}`);
 
       if (inquiryStatus === "completed") {
-        await axios.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
+        await retry(() => axios.post(SETTLE_API_URL, { transactionId: merchantTransactionId }));
         console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} marked as completed`);
         await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Completed.`);
         console.log(`Sent completed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       } else if (inquiryStatus === "failed") {
-        await axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
-        console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} marked as failed`);
+        await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));        console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} marked as failed`);
         await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Failed.`);
         console.log(`Sent failed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       } else if (inquiryStatus === "pending") {
@@ -205,7 +203,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         console.log(`Sent Pending message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       } else {
         console.log(`Unknown status for ${type} ${merchantTransactionId}`);
-        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Unknown status. Please contact support.`);
+        //await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Unknown status. Please contact support.`);
         console.log(`Sent unknown status message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       }
     } catch (error) {

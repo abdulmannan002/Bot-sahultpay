@@ -232,85 +232,130 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Perform status inquiry for transactions (not payouts)
-    if (type === "transaction" && uidMap) {
-      const providerName = transaction.providerDetails?.name?.toLowerCase();
-      let inquiryUrl, inquiryResponse, inquiryUid;
+    // Perform status inquiry for transactions (not payouts)
+if (type === "transaction" && uidMap) {
+  const providerName = transaction.providerDetails?.name?.toLowerCase();
+  let inquiryUrl, inquiryResponse, inquiryUid;
 
-      try {
-        if (providerName === "easypaisa") {
-          const easyPaisaMerchantId = transaction.providerDetails?.id;
-          let mappedId = uidMap[easyPaisaMerchantId];
+  try {
+    if (providerName === "easypaisa") {
+      const easyPaisaMerchantId = transaction.providerDetails?.id;
+      let mappedId = uidMap[easyPaisaMerchantId];
 
-          if (mappedId) {
-            console.log(`Performing Easypaisa inquiry with UUID: ${mappedId}`);
-            inquiryUid = mappedId;
-            if ([5, 6, 8].includes(parseInt(easyPaisaMerchantId))) {
-            inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;
-          } else {
-            inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${mappedId}?orderId=${order}`;
-          }
-            inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
-          } else {
-            let uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
-            if (uid) {
-              if ([5, 6, 8].includes(parseInt(easyPaisaMerchantId))) {
-                inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;
-              } else {
-                inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`;
-                inquiryResponse = await axiosInstance.get(inquiryUrl, { 
-                  params: { transaction_id: merchantTransactionId } 
-                });
-              }
-            } else {
-              console.error(`No UID found for transaction ${merchantTransactionId}`);
-              await bot.sendMessage(chatId, `No merchant mapping found for transaction ${merchantTransactionId}.`);
-              return;
-            }
-          }
-        } else if (providerName === "jazzcash") {
-          const jazzCashMerchantId = transaction.providerDetails?.id;
-          const mappedId = uidMap[jazzCashMerchantId];
-
-          if (mappedId) {
-          console.log(`Performing jazz cash inquiry with UUID: ${mappedId}`);
-
-            inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${mappedId}?transactionId=${order}`;
-            inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
-          } else {
-            const uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
-            if (uid) {
-              inquiryUrl = `${API_BACKOFFICE_URL}/payment/status-inquiry/${uid}`;
-              inquiryResponse = await axiosInstance.post(inquiryUrl, { transactionId: merchantTransactionId });
-            } else {
-              console.error(`No UID found for transaction ${merchantTransactionId}`);
-              await bot.sendMessage(chatId, `Nomerchant mapping found for transaction ${merchantTransactionId}.`);
-              return;
-            }
-          }
+      if (mappedId) {
+        console.log(`Performing Easypaisa inquiry with UUID: ${mappedId}`);
+        inquiryUid = mappedId;
+        if ([5, 6, 8].includes(parseInt(easyPaisaMerchantId))) {
+          inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${mappedId}?transactionId=${order}`;
         } else {
-          await bot.sendMessage(chatId, `Unsupported provider for transaction ${merchantTransactionId}.`);
+          inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${mappedId}?orderId=${order}`;
+        }
+        inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
+
+        // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
+        if (
+          inquiryResponse.data?.success === true &&
+          inquiryResponse.data?.message === "Transaction Not Found" &&
+          inquiryResponse.data?.data?.statusCode === 500
+        ) {
+          console.log(`Transaction Not Found for mappedId ${mappedId}, falling back to transaction UID`);
+          const uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
+          if (uid) {
+            inquiryUid = uid;
+            if ([5, 6, 8].includes(parseInt(easyPaisaMerchantId))) {
+              inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${order}`;
+            } else {
+              inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`;
+            }
+            inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
+          } else {
+            console.error(`No UID found for transaction ${merchantTransactionId}`);
+            await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
+            return;
+          }
+        }
+      } else {
+        const uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
+        if (uid) {
+          console.log(`Performing Easypaisa inquiry with transaction UID: ${uid}`);
+          inquiryUid = uid;
+          if ([5, 6, 8].includes(parseInt(easyPaisaMerchantId))) {
+            inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${order}`;
+          } else {
+            inquiryUrl = `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`;
+          }
+          inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
+        } else {
+          console.error(`No UID found for transaction ${merchantTransactionId}`);
+          await bot.sendMessage(chatId, `No merchant mapping found for transaction ${merchantTransactionId}.`);
           return;
         }
-
-        console.log("Inquiry API Response:", inquiryResponse.data);
-        const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
-        const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
-
-        if (inquiryStatus === "completed") {
-          await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
-          console.log(`Transaction ${merchantTransactionId} marked as completed.`);
-          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.`);
-        } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
-          await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
-          console.log(`Transaction ${merchantTransactionId} marked as failed.`);
-          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);
-        } else {
-          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Unknown status. Please contact support.`);
-        }
-      } catch (error) {
-        console.error(`Error during inquiry for ${merchantTransactionId}:`, error.response?.data || error.message);
-        await bot.sendMessage(chatId, `Error checking status for transaction ${merchantTransactionId}. Please try again later.`);
       }
+    } else if (providerName === "jazzcash") {
+      const jazzCashMerchantId = transaction.providerDetails?.id;
+      const mappedId = uidMap[jazzCashMerchantId];
+
+      if (mappedId) {
+        console.log(`Performing JazzCash inquiry with UUID: ${mappedId}`);
+        inquiryUid = mappedId;
+        inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${mappedId}?transactionId=${order}`;
+        inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
+
+        // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
+        if (
+          inquiryResponse.data?.success === true &&
+          inquiryResponse.data?.message === "Transaction Not Found" &&
+          inquiryResponse.data?.data?.statusCode === 500
+        ) {
+          console.log(`Transaction Not Found for mappedId ${mappedId}, falling back to transaction UID`);
+          const uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
+          if (uid) {
+            inquiryUid = uid;
+            inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${order}`;
+            inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
+          } else {
+            console.error(`No UID found for transaction ${merchantTransactionId}`);
+            await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
+            return;
+          }
+        }
+      } else {
+        const uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
+        if (uid) {
+          console.log(`Performing JazzCash inquiry with transaction UID: ${uid}`);
+          inquiryUid = uid;
+          inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${order}`;
+          inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
+        } else {
+          console.error(`No UID found for transaction ${merchantTransactionId}`);
+          await bot.sendMessage(chatId, `No merchant mapping found for transaction ${merchantTransactionId}.`);
+          return;
+        }
+      }
+    } else {
+      await bot.sendMessage(chatId, `Unsupported provider for transaction ${merchantTransactionId}.`);
+      return;
+    }
+
+    console.log("Inquiry API Response:", inquiryResponse.data);
+    const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
+    const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
+
+    if (inquiryStatus === "completed") {
+      await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
+      console.log(`Transaction ${merchantTransactionId} marked as completed.`);
+      await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.`);
+    } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
+      await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
+      console.log(`Transaction ${merchantTransactionId} marked as failed.`);
+      await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);
+    } else {
+      await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Unknown status. Please contact support.`);
+    }
+  } catch (error) {
+    console.error(`Error during inquiry for ${merchantTransactionId}:`, error.response?.data || error.message);
+    await bot.sendMessage(chatId, `Error checking status for transaction ${merchantTransactionId}. Please try again later.`);
+  }
     } else {
       // Handle payout status
       if (status === "failed") {

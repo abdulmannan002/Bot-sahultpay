@@ -225,3 +225,18 @@ bot.onText(/\/in (.+)/, (msg, match) => {
     bot.sendMessage(chatId, "Please provide at least one order ID.");
     console.log(`Sent no order ID message to chat ${chatId}`);
     return;
+    }
+      orders.forEach(order => {
+        console.log(`Processing ${type} for order: ${order}`);
+        handleTransactionAndPayout(chatId, order.trim(), type);
+      });
+    }
+  } else {
+    console.log("No caption provided with photo");
+  }
+});
+
+// Error handling for bot
+bot.on("polling_error", (error) => {
+  console.error("Polling error:", error.message);
+});

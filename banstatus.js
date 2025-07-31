@@ -9,7 +9,7 @@ console.log("Environment variables loaded");
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.STATUS_PORT || 4007;
+const PORT = process.env.STATUS_PORT || 4019;
 console.log(`Port set to ${PORT}`);
 
 app.listen(PORT, () => {
@@ -148,32 +148,58 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       console.log(`Callback URL set: ${callbackUrl}`);
 
       try {
-        console.log(`Calling callback API for ${type} ${merchantTransactionId}`);
-        const callbackResponse = await axiosInstance.post(callbackUrl, { transactionIds: [merchantTransactionId] });
-        console.log("Callback API Response:", JSON.stringify(callbackResponse.data, null, 2));
-        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}`);
-        console.log(`Sent completed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
+      console.log(`Calling callback API for ${type} ${merchantTransactionId}`);
+      const callbackResponse = await axiosInstance.post(callbackUrl, { transactionIds: [merchantTransactionId] });
+      console.log("Callback API Response:", JSON.stringify(callbackResponse.data, null, 2));
+      await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}`);
+      console.log(`Sent completed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       } catch (error) {
-        console.error(`Error calling callback API for ${type}:`, error.response?.data || error.message);
-        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} is completed, TxnID: ${txn_id}`);
-        console.log(`Sent fallback completed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
+      console.error(`Error calling callback API for ${type}:`, error.response?.data || error.message);
+      await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} is completed, TxnID: ${txn_id}`);
+      console.log(`Sent fallback completed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
+      }
+      return;
+    }
+
+    if (status === "failed") {
+      console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} is already failed. TxnID: ${txn_id}`);
+      const failUrl = FAIL_API_URL;
+      try {
+      console.log(`Calling fail API for ${type} ${merchantTransactionId}`);
+      const failResponse = await axiosInstance.post(failUrl, { transactionIds: [merchantTransactionId] });
+      console.log("Fail API Response:", JSON.stringify(failResponse.data, null, 2));
+      await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Failed.\nTxnID: ${txn_id}`);
+      console.log(`Sent failed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
+      } catch (error) {
+      console.error(`Error calling fail API for ${type}:`, error.response?.data || error.message);
+      await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} is failed, TxnID: ${txn_id}`);
+      console.log(`Sent fallback failed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       }
       return;
     }
 
     // Perform status inquiry for both transactions and payouts
-    const providerName = transaction.providerDetails?.sub_name?.toLowerCase();
-    console.log(`Provider name: ${providerName}`);
+    // for payout with system_order_id and payin 
+    // Determine provider transaction ID for inquiry
+    let provid;
+    if (type === "payout") {
+      provid = transaction.system_order_id || transaction.transaction_id;
+    } else {
+      provid = transaction.transaction_id || transaction.system_order_id;
+    }
+    
+    // const providerName = transaction.providerDetails?.sub_name?.toLowerCase();
+    // console.log(`Provider name: ${providerName}`);
     let inquiryUrl, inquiryResponse;
     const dalalmartuid = "8e81c7b7-b300-4cbe-99a5-3873ac70949b"
     const payinxuid = "8f30b115-39bb-4625-965b-dbde0b461527";
 
     try {
-      if (providerName === "dalalmart") {
+      if (provid.startsWith("DEV")) {
         inquiryUrl = `${API_BACKOFFICE_URL}/api/status-inquiry/${type === "payout" ? "payout" : "payin"}/${dalalmartuid}`;
         console.log(`dalalmart inquiry URL set: ${inquiryUrl}`);
         inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { [type === "payout" ? "payment_id" : "ref"]: merchantTransactionId } });
-      } else if (providerName === "payinx") {
+      } else if (provid.startsWith("T")) {
         inquiryUrl = `${API_BASE_URL}/api/status-inquiry/${type === "payout" ? "payout" : "payin"}/${payinxuid}`;
         console.log(`payinx inquiry URL set: ${inquiryUrl}`);
         inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { [type === "payout" ? "payment_id" : "ref"]: merchantTransactionId } });
@@ -190,12 +216,12 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       console.log(`Inquiry status: ${inquiryStatus}, status code: ${inquiryStatusCode}`);
 
       if (inquiryStatus === "completed") {
-        await retry(() => axios.post(SETTLE_API_URL, { transactionId: merchantTransactionId }));
-        console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} marked as completed`);
+        // await retry(() => axios.post(SETTLE_API_URL, { transactionId: merchantTransactionId }));
+        // console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} marked as completed`);
         await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Completed.`);
         console.log(`Sent completed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       } else if (inquiryStatus === "failed") {
-        await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));        console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} marked as failed`);
+        // await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));        console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} marked as failed`);
         await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Failed.`);
         console.log(`Sent failed message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       } else if (inquiryStatus === "pending") {

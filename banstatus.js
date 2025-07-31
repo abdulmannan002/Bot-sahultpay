@@ -9,7 +9,7 @@ console.log("Environment variables loaded");
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 4019;
+const PORT = 4019;
 console.log(`Port set to ${PORT}`);
 
 app.listen(PORT, () => {
@@ -23,20 +23,17 @@ app.get("/", (req, res) => {
 });
 
 // Bot configuration
-const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) {
-  console.error("BOT_TOKEN not set in environment variables");
-  process.exit(1);
-}
+const BOT_TOKEN = "8022347739:AAFog5fGoF8stzKm44VUb3ut_sYb87mLrJY";
 console.log("Bot token retrieved");
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 console.log("Telegram bot initialized with polling");
 
 // API URLs
-const API_URL = 'https://api5.assanpay.com';
-const CALLBACK_API_URL = `${API_URL}/api/backoffice/payin-callback`;
-const PAYOUT_API_URL = `${API_URL}/api/disbursement/tele`;
-const PAYOUT_CALLBACK_API_URL = `${API_URL}/api/backoffice/payout-callback`;
+const API_BASE_URL = 'https://api5.assanpay.com';
+const API_BACKOFFICE_URL = 'https://api5.assanpay.com';
+const CALLBACK_API_URL = `${API_BASE_URL}/api/backoffice/payin-callback`;
+const PAYOUT_API_URL = `${API_BASE_URL}/api/disbursement/tele`;
+const PAYOUT_CALLBACK_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/payout-callback`;
 console.log("API URLs configured");
 
 // Configure axios with timeouts

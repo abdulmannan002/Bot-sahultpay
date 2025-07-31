@@ -9,7 +9,7 @@ console.log("Environment variables loaded");
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.STATUS_PORT || 4019;
+const PORT = 4019;
 console.log(`Port set to ${PORT}`);
 
 app.listen(PORT, () => {
@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 });
 
 // Bot configuration
-const BOT_TOKEN = process.env.BOT_TOKEN || "8022347739:AAFog5fGoF8stzKm44VUb3ut_sYb87mLrJY";
+const BOT_TOKEN = "8022347739:AAFog5fGoF8stzKm44VUb3ut_sYb87mLrJY";
 console.log("Bot token retrieved");
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 console.log("Telegram bot initialized with polling");

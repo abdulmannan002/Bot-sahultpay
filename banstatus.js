@@ -29,13 +29,11 @@ const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 console.log("Telegram bot initialized with polling");
 
 // API URLs
-const API_BASE_URL = 'https://api5.assanpay.com';
-const API_BACKOFFICE_URL = 'https://api5.assanpay.com';
-const CALLBACK_API_URL = `${API_BASE_URL}/api/backoffice/payin-callback`;
-const PAYOUT_API_URL = `${API_BASE_URL}/api/disbursement/tele`;
-const PAYOUT_CALLBACK_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/payout-callback`;
+const API_URL = 'https://api5.assanpay.com';
+const CALLBACK_API_URL = `${API_URL}/api/backoffice/payin-callback`;
+const PAYOUT_API_URL = `${API_URL}/api/disbursement/tele`;
+const PAYOUT_CALLBACK_API_URL = `${API_URL}/api/backoffice/payout-callback`;
 console.log("API URLs configured");
-
 // Configure axios with timeouts
 const axiosInstance = axios.create({
   timeout: 45000,

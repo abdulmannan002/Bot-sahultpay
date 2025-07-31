@@ -9,7 +9,9 @@ console.log("Environment variables loaded");
 
 // Initialize Express app
 const app = express();
-const PORT = 4019;
+const PORT = process.env.PORT || 4019;
+console.log(`Port set to ${PORT}`);
+
 app.listen(PORT, () => {
   console.log(`Server started and running on port ${PORT}`);
 });
@@ -17,186 +19,209 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
   console.log("Received GET request on root endpoint");
   res.status(200).json({ status: "success" });
+  console.log("Sent success response for root endpoint");
 });
 
-// Bot setup
-const BOT_TOKEN = "8022347739:AAFog5fGoF8stzKm44VUb3ut_sYb87mLrJY";
+// Bot configuration
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) {
+  console.error("BOT_TOKEN not set in environment variables");
+  process.exit(1);
+}
+console.log("Bot token retrieved");
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 console.log("Telegram bot initialized with polling");
 
 // API URLs
-const API_BASE_URL = 'https://api5.assanpay.com';
-const API_BACKOFFICE_URL = 'https://api5.assanpay.com';
-const CALLBACK_API_URL = `${API_BASE_URL}/api/backoffice/payin-callback`;
-const SETTLE_API_URL = `${API_BASE_URL}/api/backoffice/settle-transactions/tele`;
-const PAYOUT_API_URL = `${API_BASE_URL}/api/disbursement/tele`;
-const PAYOUT_CALLBACK_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/payout-callback`;
-const FAIL_API_URL = `${API_BACKOFFICE_URL}/api/backoffice/fail-transactions/tele`;
+const API_URL = 'https://api5.assanpay.com';
+const CALLBACK_API_URL = `${API_URL}/api/backoffice/payin-callback`;
+const PAYOUT_API_URL = `${API_URL}/api/disbursement/tele`;
+const PAYOUT_CALLBACK_API_URL = `${API_URL}/api/backoffice/payout-callback`;
+console.log("API URLs configured");
 
-// Axios config
-const axiosInstance = axios.create({ timeout: 45000 });
-try {
-  const axiosRetry = require("axios-retry").default;
-  axiosRetry(axiosInstance, {
-    retries: 3,
-    retryDelay: (retryCount) => retryCount * 2000,
-    retryCondition: (error) =>
+// Configure axios with timeouts
+const axiosInstance = axios.create({
+  timeout: 45000,
+});
+console.log("Axios instance created with 45s timeout");
+
+// Configure axios-retry
+const axiosRetry = require("axios-retry").default;
+console.log("Attempting to configure axios-retry");
+axiosRetry(axiosInstance, {
+  retries: 3,
+  retryDelay: (retryCount) => retryCount * 2000,
+  retryCondition: (error) => {
+    return (
       axios.isCancel(error) ||
       error.code === "ECONNABORTED" ||
-      (error.response && error.response.status >= 500),
-  });
-  console.log("axios-retry configured successfully");
-} catch (error) {
-  console.error("axios-retry configuration failed:", error.message);
-}
+      (error.response && error.response.status >= 500)
+    );
+  },
+});
+console.log("axios-retry configured successfully");
 
-// 🔁 Utility to send callback status
-const sendStatusCallback = async ({ type, status, chatId, merchantTransactionId, txn_id }) => {
-  const callbackUrl = type === "payout" ? PAYOUT_CALLBACK_API_URL : CALLBACK_API_URL;
-  const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
-  const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1);
-
-  try {
-    const callbackResponse = await axiosInstance.post(callbackUrl, { transactionIds: [merchantTransactionId] });
-    console.log("Callback API Response:", JSON.stringify(callbackResponse.data, null, 2));
-    await bot.sendMessage(chatId, `${capitalizedType} ${merchantTransactionId}: ${capitalizedStatus}.\nTxnID: ${txn_id}`);
-  } catch (error) {
-    console.error(`Callback error for ${type}:`, error.response?.data || error.message);
-    await bot.sendMessage(chatId, `${capitalizedType} ${merchantTransactionId} is ${capitalizedStatus}, TxnID: ${txn_id}`);
-  }
+// Provider UIDs
+const providerUids = {
+  DEV: "8e81c7b7-b300-4cbe-99a5-3873ac70949b", // dalalmartuid
+  T: "8f30b115-39bb-4625-965b-dbde0b461527", // payinxuid
 };
 
-// 🔄 Main handler
+// Safe logging function
+const safeLog = (data) => {
+  const { transaction_id, merchant_transaction_id, ...safeData } = data;
+  return JSON.stringify(safeData, null, 2);
+};
+
+// Function to handle transactions or payouts
 const handleTransactionAndPayout = async (chatId, order, type = "transaction") => {
   try {
+    console.log(`Starting ${type} handling for order: ${order}`);
+
+    // Validate order ID
     if (!order || typeof order !== "string" || order.trim() === "") {
+      console.log("Invalid order ID provided");
       await bot.sendMessage(chatId, "Invalid order ID provided.");
+      console.log(`Sent invalid order ID message to chat ${chatId}`);
+      return;
+    }
+    console.log("Order ID validated");
+
+    // Determine API URL
+    let apiUrl;
+    if (type === "transaction") {
+      apiUrl = `${API_URL}/api/transactions/tele?merchantTransactionId=${order}`;
+      console.log(`Transaction API URL set: ${apiUrl}`);
+    } else if (type === "payout") {
+      apiUrl = `${PAYOUT_API_URL}?merchantTransactionId=${order}`;
+      console.log(`Payout API URL set: ${apiUrl}`);
+    } else {
+      console.error("Invalid type specified");
+      await bot.sendMessage(chatId, "Invalid transaction type.");
+      console.log(`Sent invalid transaction type message to chat ${chatId}`);
       return;
     }
 
-    let apiUrl = type === "transaction"
-      ? `${API_BASE_URL}/api/transactions/tele?merchantTransactionId=${order}`
-      : `${PAYOUT_API_URL}?merchantTransactionId=${order}`;
-
+    // Make API request
     let response;
     try {
+      console.log(`Making API request to ${apiUrl}`);
       response = await axiosInstance.get(apiUrl);
+      console.log("API Response received:", safeLog(response.data));
     } catch (error) {
+      console.error(`Error fetching ${type} data for order ${order}:`, error.message);
       if (error.response?.status === 500) {
-        await bot.sendMessage(chatId, `${type} ${order} failed due to server error.`);
+        console.log("Server error (500) encountered");
+        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${order} failed due to a server error. Please try again later.`);
       } else if (error.code === "ECONNABORTED") {
-        await bot.sendMessage(chatId, `${type} ${order} timed out. Try again.`);
+        console.log("Request timed out");
+        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${order} timed out. Please try again.`);
       } else {
-        await bot.sendMessage(chatId, `Error fetching ${type} ${order}`);
+        console.log("Other error occurred during API request");
+        await bot.sendMessage(chatId, `Error processing ${type} ${order}`);
       }
+      console.log(`Sent error message for ${type} ${order} to chat ${chatId}`);
       return;
     }
 
-    const transaction = response.data.transactions?.[0];
+    // Extract transaction data
+    const transaction = type === "transaction" ? response.data.transactions?.[0] : response.data.transactions?.[0];
     if (!transaction) {
-      await bot.sendMessage(chatId, `${type} ${order} not found in Back-office.`);
+      console.log(`No ${type} found for order: ${order}`);
+      await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${order} not found in Back-office. Please check the order ID.`);
+      console.log(`Sent ${type} not found message for order ${order} to chat ${chatId}`);
       return;
     }
+    console.log("Transaction data extracted:", safeLog(transaction));
 
     const status = transaction.status?.trim().toLowerCase();
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
     const txn_id = transaction.transaction_id;
+    console.log(`Transaction status: ${status}, merchantTransactionId: ${merchantTransactionId}, txn_id: ${txn_id}`);
 
     if (!merchantTransactionId) {
-      await bot.sendMessage(chatId, `Invalid transaction ID for ${type} ${order}.`);
+      console.error("Error: merchantTransactionId is undefined");
+      await bot.sendMessage(chatId, `Error: Invalid transaction ID for ${type} ${order}.`);
+      console.log(`Sent invalid transaction ID message for ${type} ${order} to chat ${chatId}`);
       return;
     }
 
-    // Handle completed/failed
+    // Handle completed or failed transactions/payouts
     if (status === "completed" || status === "failed") {
-      await sendStatusCallback({ type, status, chatId, merchantTransactionId, txn_id });
+      console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} is already ${status}. TxnID: ${txn_id}`);
+      const callbackUrl = type === "payout" ? PAYOUT_CALLBACK_API_URL : CALLBACK_API_URL;
+      console.log(`Callback URL set: ${callbackUrl}`);
+      try {
+        console.log(`Calling callback API for ${type} ${merchantTransactionId}`);
+        const callbackResponse = await axiosInstance.post(callbackUrl, { transactionIds: [merchantTransactionId] });
+        console.log("Callback API Response:", safeLog(callbackResponse.data));
+        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: ${status.charAt(0).toUpperCase() + status.slice(1)}.\nTxnID: ${txn_id}`);
+      } catch (error) {
+        console.error(`Error calling callback API for ${type}:`, error.response?.data || error.message);
+        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId} is ${status.charAt(0).toUpperCase() + status.slice(1)}, TxnID: ${txn_id}`);
+      }
+      console.log(`Sent ${status} message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       return;
     }
 
     // Perform status inquiry
-    let provid = type === "payout"
-      ? transaction.system_order_id || transaction.transaction_id
-      : transaction.transaction_id || transaction.system_order_id;
+    let provid = type === "payout" ? (transaction.system_order_id || transaction.transaction_id) : (transaction.transaction_id || transaction.system_order_id);
+    console.log(`Provider transaction ID: ${provid}`);
 
     let inquiryUrl, inquiryResponse;
-    const dalalmartuid = "8e81c7b7-b300-4cbe-99a5-3873ac70949b";
-    const payinxuid = "8f30b115-39bb-4625-965b-dbde0b461527";
-
+    const providerKey = Object.keys(providerUids).find(key => provid.startsWith(key));
     try {
-      if (provid.startsWith("DEV")) {
-        inquiryUrl = `${API_BACKOFFICE_URL}/api/status-inquiry/${type}/${dalalmartuid}`;
-        inquiryResponse = await axiosInstance.get(inquiryUrl, {
-          params: { [type === "payout" ? "payment_id" : "ref"]: merchantTransactionId },
-        });
-      } else if (provid.startsWith("T")) {
-        inquiryUrl = `${API_BASE_URL}/api/status-inquiry/${type}/${payinxuid}`;
-        inquiryResponse = await axiosInstance.get(inquiryUrl, {
-          params: { [type === "payout" ? "payment_id" : "ref"]: merchantTransactionId },
-        });
-      } else {
+      if (!providerKey) {
+        console.error(`No UID found for ${type} ${merchantTransactionId}`);
+        await bot.sendMessage(chatId, `No merchant mapping found for ${type} ${merchantTransactionId}.`);
+        console.log(`Sent no merchant mapping message for ${type} ${merchantTransactionId} to chat ${chatId}`);
         return;
       }
+      inquiryUrl = `${API_URL}/api/status-inquiry/${type === "payout" ? "payout" : "payin"}/${providerUids[providerKey]}`;
+      console.log(`${providerKey} inquiry URL set: ${inquiryUrl}`);
+      inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { [type === "payout" ? "payment_id" : "ref"]: merchantTransactionId } });
+      console.log("Inquiry API Response:", safeLog(inquiryResponse.data));
 
-      const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase()
-        || inquiryResponse?.data?.data?.data?.status?.toLowerCase()
-        || inquiryResponse?.data?.data?.statusCode;
+      const getInquiryStatus = (response) => {
+        const data = response?.data?.data;
+        return (
+          data?.transactionStatus?.toLowerCase() ||
+          data?.data?.status?.toLowerCase() ||
+          data?.statusCode?.toLowerCase() ||
+          "unknown"
+        );
+      };
+      const inquiryStatus = getInquiryStatus(inquiryResponse);
+      console.log(`Inquiry status: ${inquiryStatus}`);
 
       if (inquiryStatus === "completed" || inquiryStatus === "failed" || inquiryStatus === "pending") {
         await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: ${inquiryStatus.charAt(0).toUpperCase() + inquiryStatus.slice(1)}.`);
+        console.log(`Sent ${inquiryStatus} message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       } else {
-        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Unknown status.`);
+        console.log(`Unknown status for ${type} ${merchantTransactionId}`);
+        await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${merchantTransactionId}: Unknown status. Please contact support.`);
+        console.log(`Sent unknown status message for ${type} ${merchantTransactionId} to chat ${chatId}`);
       }
     } catch (error) {
-      console.error(`Inquiry error for ${type} ${merchantTransactionId}:`, error.response?.data || error.message);
-      await bot.sendMessage(chatId, `Error checking status for ${type} ${merchantTransactionId}.`);
+      console.error(`Error during inquiry for ${type} ${merchantTransactionId}:`, error.response?.data || error.message);
+      await bot.sendMessage(chatId, `Error checking status for ${type} ${merchantTransactionId}. Please try again later.`);
+      console.log(`Sent inquiry error message for ${type} ${merchantTransactionId} to chat ${chatId}`);
     }
   } catch (error) {
-    console.error(`Handler error:`, error.message);
+    console.error(`Error handling ${type} for order ${order}:`, error.message);
     await bot.sendMessage(chatId, `Error processing ${type} ${order}`);
+    console.log(`Sent general error message for ${type} ${order} to chat ${chatId}`);
   }
 };
 
-// 🧠 Utility to handle multiple orders
-const processOrders = (chatId, orders, type) => {
-  if (!orders || orders.length === 0) {
-    bot.sendMessage(chatId, "Please provide at least one order ID.");
-    return;
-  }
-  orders.forEach(order => handleTransactionAndPayout(chatId, order.trim(), type));
-};
-
-// Handle /in command
+// Handle /in command for transactions
 bot.onText(/\/in (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
   const orders = match[1].trim().split(/\s+/);
-  processOrders(chatId, orders, "transaction");
-});
+  console.log(`Received /in command with orders: ${orders}`);
 
-// Handle /out command
-bot.onText(/\/out (.+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const orders = match[1].trim().split(/\s+/);
-  processOrders(chatId, orders, "payout");
-});
-
-// Handle image message with caption
-bot.on("photo", (msg) => {
-  const chatId = msg.chat.id;
-  if (msg.caption) {
-    const parts = msg.caption.split(/\s+/);
-    const command = parts[0];
-    const orders = parts.slice(1);
-    const type = command === "/out" ? "payout" : "transaction";
-    processOrders(chatId, orders, type);
-  }
-});
-
-// ✅ Ping check
-bot.onText(/\/ping/, (msg) => {
-  bot.sendMessage(msg.chat.id, `✅ Bot is online. Time: ${new Date().toISOString()}`);
-});
-
-// Polling error handler
-bot.on("polling_error", (error) => {
-  console.error("Polling error:", error.message);
-});
+  if (orders.length === 0) {
+    console.log("No order IDs provided for /in command");
+    bot.sendMessage(chatId, "Please provide at least one order ID.");
+    console.log(`Sent no order ID message to chat ${chatId}`);
+    return;

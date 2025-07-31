@@ -120,7 +120,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Extract transaction data
-    const transaction = type === "transaction" ? response.data.transactions?.[0] : response.data?.data?.transactions?.[0];
+    const transaction = type === "transaction" ? response.data.transactions?.[0] : response.data?.data?.data?.transactions?.[0];
     if (!transaction) {
       console.log(`No ${type} found for order: ${order}`);
       await bot.sendMessage(chatId, `${type.charAt(0).toUpperCase() + type.slice(1)} ${order} not found in Back-office. Please check the order ID.`);

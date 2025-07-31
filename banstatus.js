@@ -225,7 +225,54 @@ bot.onText(/\/in (.+)/, (msg, match) => {
     bot.sendMessage(chatId, "Please provide at least one order ID.");
     console.log(`Sent no order ID message to chat ${chatId}`);
     return;
-    }
+  }
+
+  orders.forEach(order => {
+    console.log(`Processing transaction for order: ${order}`);
+    handleTransactionAndPayout(chatId, order, "transaction");
+  });
+});
+
+// Handle /out command for payouts
+bot.onText(/\/out (.+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const orders = match[1].trim().split(/\s+/);
+  console.log(`Received /out command with orders: ${orders}`);
+
+  if (orders.length === 0) {
+    console.log("No order IDs provided for /out command");
+    bot.sendMessage(chatId, "Please provide at least one order ID.");
+    console.log(`Sent no order ID message to chat ${chatId}`);
+    return;
+  }
+
+  orders.forEach(order => {
+    console.log(`Processing payout for order: ${order}`);
+    handleTransactionAndPayout(chatId, order, "payout");
+  });
+});
+
+// Handle image messages with caption
+bot.on("photo", (msg) => {
+  const chatId = msg.chat.id;
+  console.log("Received photo message");
+
+  if (msg.caption) {
+    console.log(`Photo caption: ${msg.caption}`);
+    const parts = msg.caption.split(/\s+/);
+    const command = parts[0];
+    const orders = parts.slice(1);
+    console.log(`Command: ${command}, Orders: ${orders}`);
+
+    if (command === "/out" || command === "/in") {
+      const type = command === "/out" ? "payout" : "transaction";
+      console.log(`Processing ${type} from photo caption`);
+      if (orders.length === 0) {
+        console.log("No order IDs provided in photo caption");
+        bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
+        console.log(`Sent no order ID message to chat ${chatId}`);
+        return;
+      }
       orders.forEach(order => {
         console.log(`Processing ${type} for order: ${order}`);
         handleTransactionAndPayout(chatId, order.trim(), type);

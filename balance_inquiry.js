@@ -129,7 +129,7 @@ bot.on('message', async (msg) => {
         const message = `
 *📊 Balance Inquiry *  
 ━━━━━━━━━━━━━━━━━━━━━  
-*   MERCHANT NAME*: ${data.availableBalance} 
+*   MERCHANT NAME*: ${data.full_name} 
 *💰 Available Balance*: ${formatNumber(data.availableBalance)}  
 *📈 Success Rate*: ${formatNumber(data.transactionSuccessRate)}%  
 *🏦 Disbursement Balance*: ${formatNumber(data.disbursementBalance)}  

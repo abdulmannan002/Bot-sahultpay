@@ -46,7 +46,33 @@ async function processQueue() {
   setTimeout(processQueue, 1000);
 }
 
-const DASHBOARD_API = 'https://server.sahulatpay.com/dashboard/merchant-details';
+const DASHBOARD_API_URLS = [
+  'https://server.sahulatpay.com/dashboard/merchant-details',
+  'https://api5.assanpay.com/dashboard/merchant-details',
+];
+
+async function fetchDashboardData(merchantUUID) {
+  for (const url of DASHBOARD_API_URLS) {
+    try {
+      console.log(`Attempting to fetch data from ${url}/${merchantUUID}`);
+      const response = await Promise.race([
+        axios.get(`${url}/${merchantUUID}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; TelegramBot/1.0)',
+          },
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 10000)),
+      ]);
+
+      console.log(`API response received from ${url}`);
+      return response; // Return the successful response
+    } catch (error) {
+      console.error(`Error fetching from ${url}: ${error.message}`);
+      // Continue to the next URL if this one fails
+    }
+  }
+  throw new Error('All API endpoints failed');
+}
 
 function getStateKey(msg) {
   const chatId = msg.chat.id;
@@ -96,22 +122,14 @@ bot.on('message', async (msg) => {
     console.log(`Fetching dashboard data for UUID: ${text}`);
 
     try {
-      const dashboardResponse = await Promise.race([
-        axios.get(`${DASHBOARD_API}/${text}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; TelegramBot/1.0)',
-          },
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard API timeout')), 100000)),
-      ]);
-
-      console.log("API response received");
+      const dashboardResponse = await fetchDashboardData(text);
 
       if (dashboardResponse.data.success) {
         const data = dashboardResponse.data.data;
         const message = `
 *📊 Balance Inquiry *  
 ━━━━━━━━━━━━━━━━━━━━━  
+*   MERCHANT NAME*: ${data.availableBalance} 
 *💰 Available Balance*: ${formatNumber(data.availableBalance)}  
 *📈 Success Rate*: ${formatNumber(data.transactionSuccessRate)}%  
 *🏦 Disbursement Balance*: ${formatNumber(data.disbursementBalance)}  
@@ -130,11 +148,11 @@ _Powered by SahulatPay_
         });
       }
     } catch (error) {
-      let errorMessage = 'Error fetching dashboard data. ';
+      let errorMessage = 'Error fetching dashboard data from all endpoints. ';
       if (error.response) {
         errorMessage += `Status: ${error.response.status}, Message: ${error.response.data.message || 'No details provided'}`;
       } else if (error.request) {
-        errorMessage += 'No response from the server. Please check the API endpoint or network.';
+        errorMessage += 'No response from any server. Please check the API endpoints or network.';
       } else {
         errorMessage += `Error: ${error.message}`;
       }

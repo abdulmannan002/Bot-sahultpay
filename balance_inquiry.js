@@ -48,7 +48,7 @@ async function processQueue() {
 
 const DASHBOARD_API_URLS = [
   'https://server.sahulatpay.com/dashboard/merchant-details',
-  'https://api5.assanpay.com/dashboard/merchant-details',
+  'https://api5.assanpay.com/api/dashboard/merchant-details',
 ];
 
 async function fetchDashboardData(merchantUUID) {

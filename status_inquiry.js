@@ -299,7 +299,7 @@ if (type === "transaction" && uidMap) {
       if (mappedId) {
         console.log(`Performing JazzCash inquiry with UUID: ${mappedId}`);
         inquiryUid = mappedId;
-        inquiryUrl = `${API_BASE_URL}/payment/status-inquiry/${mappedId}?transactionId=${order}`;
+        inquiryUrl = `${API_BASE_URL}/payment/status-inquiry/78696527-5e37-4135-b917-240bd3566aac?transactionId=${order}`;
         inquiryResponse = await axiosInstance.get(inquiryUrl, { transaction_id: merchantTransactionId });
 
         // Check if inquiry response indicates "Transaction Not Found" with statusCode 500

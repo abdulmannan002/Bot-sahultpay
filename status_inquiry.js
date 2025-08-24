@@ -33,7 +33,7 @@ const FAIL_API_URL = `${API_BACKOFFICE_URL}/backoffice/fail-transactions/tele`;
 
 // Configure axios with timeouts
 const axiosInstance = axios.create({
-  timeout: 45000, // Increased to 45 seconds
+  timeout: 70000, // Increased to 45 seconds
 });
 
 // Configure axios-retry

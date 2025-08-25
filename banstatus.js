@@ -59,7 +59,9 @@ console.log("axios-retry configured successfully");
 // Provider UIDs
 const providerUids = {
   DEV: "8e81c7b7-b300-4cbe-99a5-3873ac70949b", // dalalmartuid
-  T: "8f30b115-39bb-4625-965b-dbde0b461527", // payinxuid
+  T: "8f30b115-39bb-4625-965b-dbde0b461527",// payinxuid
+  SP: "8e81c7b7-b300-4cbe-99a5-3873ac70949b",
+  BK: "8e81c7b7-b300-4cbe-99a5-3873ac70949b",
 };
 
 // Safe logging function

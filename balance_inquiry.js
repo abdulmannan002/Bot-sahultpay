@@ -61,7 +61,7 @@ async function fetchDashboardData(merchantUUID) {
             'User-Agent': 'Mozilla/5.0 (compatible; TelegramBot/1.0)',
           },
         }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 10000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 60000)),
       ]);
 
       console.log(`API response received from ${url}`);

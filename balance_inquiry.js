@@ -107,8 +107,9 @@ bot.on('message', async (msg) => {
       ]);
 
       if (dashboardResponse.data.success) {
-        const data = dashboardResponse.data.data;
-        const message = `
+        const data = dashboardResponse.data;
+        console.log(data);
+          const message = `
 *📊 Balance Inquiry *  
 ━━━━━━━━━━━━━━━━━━━━━  
 *💰 Available Balance*: ${formatNumber(data.availableBalance)}  

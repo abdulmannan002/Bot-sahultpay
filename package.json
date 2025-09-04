@@ -13,14 +13,20 @@
     "start:payout": "node payout_pending.js",
     "start:status": "node status_inquiry.js",
     "start:first": "node firstpayalert.js",
-    "start:ban": "node banstatus.js"
+    "start:ban": "node banstatus.js",
+    "start:dis": "node alert-disbursement.js",
+    "start:system": "node system-down.js"
   },
   "dependencies": {
     "axios": "^1.9.0",
+    "bottleneck": "^2.19.5",
+    "chartjs-node-canvas": "^5.0.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "node-schedule": "^2.1.1",
-    "node-telegram-bot-api": "^0.66.0"
+    "node-telegram-bot-api": "^0.66.0",
+    "p-retry": "^7.0.0",
+    "winston": "^3.17.0"
   },
   "engines": {
     "node": ">=18.x"

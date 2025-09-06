@@ -18,7 +18,7 @@ function formatNumber(value) {
 
 // API endpoints
 const DASHBOARD_APIS = [
-  'https://api.sahulatpay.com/dashboard/merchant-details',
+  'https://server.sahulatpay.com/dashboard/merchant-details',
   'https://api5.assanpay.com/api/dashboard/merchant-details',
 ];
 
@@ -37,7 +37,7 @@ async function fetchAndDisplayData(merchantUuid, chatId, messageId) {
             'User-Agent': 'Mozilla/5.0 (compatible; ConsoleBot/1.0)',
           },
         }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard API timeout')), 10000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard API timeout')), 60000)),
       ]);
 
       console.log(`Received response from ${apiUrl}:`, dashboardResponse.data);

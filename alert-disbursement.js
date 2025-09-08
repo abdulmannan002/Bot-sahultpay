@@ -19,7 +19,7 @@ const config = {
             // 49: '?merchantId=49'
         }
     },
-    monitorInterval: 600000, // 10 minutes
+    monitorInterval: 300000,
     retryInterval: 60000, // 1 minute for server down retries
     acknowledgment: {
         retries: 3,

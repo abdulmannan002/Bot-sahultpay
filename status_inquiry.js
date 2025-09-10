@@ -142,7 +142,7 @@ const uidMap = {
   143: "cc961e51-8c0e-44d4-9c25-56e39e992b88",
   // JazzCash UIDs
   7: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  45: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
+  65: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3",
   32: "3c0ba58b-5a69-4376-b40d-4d497d561ba2",
   // animatrix
   46: "cc961e51-8c0e-44d4-9c25-56e39e992b88",

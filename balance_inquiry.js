@@ -43,18 +43,20 @@ async function fetchAndDisplayData(merchantUuid, chatId, messageId) {
       console.log(`Received response from ${apiUrl}:`, dashboardResponse.data);
 
       if (dashboardResponse.data.success) {
-        const data = dashboardResponse.data.data;
-        console.log(`Successfully fetched data:`, data);
-        message = `
-*📊 Balance Inquiry *  
+    const data = dashboardResponse.data.data;
+    console.log(`Successfully fetched data:`, data);
+    message = `
+*📊 Balance Inquiry*  
 ━━━━━━━━━━━━━━━━━━━━━  
-*💰 Merchant Name*: ${data.full_name}
+*👤 Merchant Name*: ${data.full_name}  
 *💰 Available Balance*: ${formatNumber(data.availableBalance)}  
 *📈 Success Rate*: ${formatNumber(data.transactionSuccessRate)}%  
 *🏦 Disbursement Balance*: ${formatNumber(data.disbursementBalance)}  
+*💳 Total Available Funds*: ${formatNumber(data.availableBalance + data.disbursementBalance)}  
 ━━━━━━━━━━━━━━━━━━━━━━  
-_Powered by SahulatPay_
-        `;
+⚡ _Powered by SahulatPay_ ⚡
+    `;
+
         success = true;
         console.log(`Formatted success message: ${message}`);
         break; // Exit loop on success

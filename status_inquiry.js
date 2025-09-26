@@ -299,7 +299,7 @@ if (type === "transaction" && uidMap) {
       if (mappedId) {
         console.log(`Performing JazzCash inquiry with UUID: ${mappedId}`);
         inquiryUid = mappedId;
-        inquiryUrl = `${API_BASE_URL}/payment/all-inquiry/${mappedId}?transactionId=${order}`;
+        inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${mappedId}?transactionId=${order}`;
         inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
 
         // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
@@ -312,7 +312,7 @@ if (type === "transaction" && uidMap) {
           const uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
           if (uid) {
             inquiryUid = uid;
-            inquiryUrl = `${API_BASE_URL}/payment/all-inquiry/${uid}?transactionId=${order}`;
+            inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${order}`;
             inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
           } else {
             console.error(`No UID found for transaction ${merchantTransactionId}`);
@@ -325,7 +325,7 @@ if (type === "transaction" && uidMap) {
         if (uid) {
           console.log(`Performing JazzCash inquiry with transaction UID: ${uid}`);
           inquiryUid = uid;
-          inquiryUrl = `${API_BASE_URL}/payment/all-inquiry/${uid}?transactionId=${order}`;
+          inquiryUrl = `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${order}`;
           inquiryResponse = await axiosInstance.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
         } else {
           console.error(`No UID found for transaction ${merchantTransactionId}`);

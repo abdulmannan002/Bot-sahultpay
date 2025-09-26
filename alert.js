@@ -17,6 +17,7 @@ const config = {
             444: '?merchantId=444',
             451: '?merchantId=451',
             655: '?merchantId=655',
+            672: '?merchantId=672',
             49: '?merchantId=49'
         }
     },
@@ -349,7 +350,7 @@ async function startMonitoring() {
 
         Object.entries(config.api.merchants).forEach(([id, query], index) => {
             const { transactions: txns } = merchantTxns[index];
-            const name = id === "444" ? "Monetix" : id === "655" ?  "PAY GAMES" : id === "451" ? "First Pay" : id === "49" ? "UNITY FINANCE " : `Merchant ${id}`;
+            const name = id === "673" ? "ABC" : id === "444" ? "Monetix" : id === "655" ?  "PAY GAMES" : id === "451" ? "First Pay" : id === "49" ? "UNITY FINANCE " : `Merchant ${id}`;
             const easypaisa = filterTransactionsByProvider(txns, "Easypaisa");
             const jazzcash = filterTransactionsByProvider(txns, "JazzCash");
             if (easypaisa.length) statsMap[`${name} Easypaisa`] = calculateStats(easypaisa);

@@ -248,14 +248,13 @@ if (type === "transaction" && uidMap) {
           );
         } else {
           return await axiosInstance.get(
-            `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`,
-            { params: { transaction_id: merchantTransactionId } }
+            `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
+            
           );
         }
       } else if (providerName === "jazzcash") {
         return await axiosInstance.get(
-          `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`,
-          { params: { transaction_id: merchantTransactionId } }
+          `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
         );
       }
       throw new Error("Unsupported provider");

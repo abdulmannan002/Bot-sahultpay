@@ -7,7 +7,12 @@ dotenv.config();
 console.log('Starting Telegram bot...');
 
 // Function to format numbers with commas and 2 decimal places
+// Log bot initialization
+console.log('Starting Telegram bot...');
+
+// Function to format numbers with commas and 2 decimal places
 function formatNumber(value) {
+  console.log(`Formatting number: ${value}`);
   console.log(`Formatting number: ${value}`);
   if (typeof value === 'undefined' || value === null) return '0.00';
   return Number(value).toLocaleString('en-US', {
@@ -96,11 +101,18 @@ async function sendMessageWithQueue(chatId, message, options = {}) {
   console.log(`Adding message to queue for chatId ${chatId}: ${message}`);
   const queueItem = { chatId, message, options };
   messageQueue.push(queueItem);
+  console.log(`Adding message to queue for chatId ${chatId}: ${message}`);
+  const queueItem = { chatId, message, options };
+  messageQueue.push(queueItem);
   if (messageQueue.length === 1) {
     console.log('Starting to process message queue');
     const sentMessage = await processQueue();
     return sentMessage; // Return sent message for ID tracking
+    console.log('Starting to process message queue');
+    const sentMessage = await processQueue();
+    return sentMessage; // Return sent message for ID tracking
   }
+  return null; // Return null if queue is not processed immediately
   return null; // Return null if queue is not processed immediately
 }
 async function processQueue() {
@@ -108,13 +120,34 @@ async function processQueue() {
     console.log('Message queue is empty, stopping processing');
     return null;
   }
+  if (messageQueue.length === 0) {
+    console.log('Message queue is empty, stopping processing');
+    return null;
+  }
   const { chatId, message, options } = messageQueue[0];
+  console.log(`Processing message for chatId ${chatId}: ${message}`);
   console.log(`Processing message for chatId ${chatId}: ${message}`);
   try {
     const sentMessage = await bot.sendMessage(chatId, message, options);
     console.log(`Successfully sent message to chatId ${chatId}, messageId: ${sentMessage.message_id}`);
     return sentMessage; // Return sent message for ID tracking
+    const sentMessage = await bot.sendMessage(chatId, message, options);
+    console.log(`Successfully sent message to chatId ${chatId}, messageId: ${sentMessage.message_id}`);
+    return sentMessage; // Return sent message for ID tracking
   } catch (error) {
+    console.log(`Error sending message to chatId ${chatId}: ${error.message}`);
+    return null;
+  } finally {
+    messageQueue.shift();
+    console.log(`Removed message from queue, remaining: ${messageQueue.length}`);
+    if (messageQueue.length > 0) {
+      console.log('Continuing to process next message in queue');
+      setTimeout(processQueue, 1000);
+    }
+  }
+}
+
+// Get state key for user
     console.log(`Error sending message to chatId ${chatId}: ${error.message}`);
     return null;
   } finally {
@@ -134,16 +167,38 @@ function getStateKey(msg) {
   const stateKey = msg.chat.type === 'private' ? `${chatId}` : `${chatId}:${userId}`;
   console.log(`Generated state key: ${stateKey} for chatId: ${chatId}, userId: ${userId}`);
   return stateKey;
+  const stateKey = msg.chat.type === 'private' ? `${chatId}` : `${chatId}:${userId}`;
+  console.log(`Generated state key: ${stateKey} for chatId: ${chatId}, userId: ${userId}`);
+  return stateKey;
 }
 
 // Initialize bot
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7239638999:AAH2hu1KFc1xdnU6yISqcpFjhNEhcm66LWs';
+// Initialize bot
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7239638999:AAH2hu1KFc1xdnU6yISqcpFjhNEhcm66LWs';
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: { interval: 1000 } });
+console.log(`Bot initialized with token: ${TELEGRAM_BOT_TOKEN}`);
 console.log(`Bot initialized with token: ${TELEGRAM_BOT_TOKEN}`);
 
 // Store user state
+// Store user state
 const userState = {};
 
+// Handle /start command
+bot.onText(/\/start/, async (msg) => {
+  const chatId = msg.chat.id;
+  const stateKey = getStateKey(msg);
+  console.log(`Received /start command from chatId ${chatId}, stateKey: ${stateKey}`);
+  const promptMessage = `Welcome to the SahulatPay Bot! Please reply to this message with a merchant UUID.`;
+  const sentMessage = await sendMessageWithQueue(chatId, promptMessage, {
+    reply_to_message_id: msg.message_id,
+  });
+  userState[stateKey] = { step: 'awaiting_merchant', promptMessageId: sentMessage?.message_id || null };
+  console.log(`Set user state for ${stateKey}:`, userState[stateKey]);
+});
+
+// Handle /stop command
+bot.onText(/\/stop/, (msg) => {
 // Handle /start command
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
@@ -165,21 +220,39 @@ bot.onText(/\/stop/, (msg) => {
   delete userState[stateKey]; // Clear user state
   console.log(`Cleared user state for ${stateKey}`);
   sendMessageWithQueue(chatId, 'Bot stopped. Use /start to begin again.', {
+  console.log(`Received /stop command from chatId ${chatId}, stateKey: ${stateKey}`);
+  delete userState[stateKey]; // Clear user state
+  console.log(`Cleared user state for ${stateKey}`);
+  sendMessageWithQueue(chatId, 'Bot stopped. Use /start to begin again.', {
     reply_to_message_id: msg.message_id,
   });
 });
 
+// Handle user messages
 // Handle user messages
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   let text = msg.text;
   const replyToMessageId = msg.reply_to_message_id;
+  const userId = msg.from.id;
+  let text = msg.text;
+  const replyToMessageId = msg.reply_to_message_id;
   const stateKey = getStateKey(msg);
+  console.log(`Received message from chatId ${chatId}, userId: ${userId}, text: ${text}, replyToMessageId: ${replyToMessageId}, full message: ${JSON.stringify(msg)}`);
   console.log(`Received message from chatId ${chatId}, userId: ${userId}, text: ${text}, replyToMessageId: ${replyToMessageId}, full message: ${JSON.stringify(msg)}`);
 
   // Check if the message starts with '/' but resembles a UUID
+  // Check if the message starts with '/' but resembles a UUID
   if (text && text.startsWith('/')) {
+    const potentialUUID = text.slice(1); // Remove the leading '/'
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(potentialUUID)) {
+      console.log(`Detected UUID-like command: ${potentialUUID}, treating as regular message`);
+      text = potentialUUID; // Treat as regular UUID
+    } else {
+      console.log(`Ignoring command message: ${text}`);
+      return;
+    }
     const potentialUUID = text.slice(1); // Remove the leading '/'
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(potentialUUID)) {
       console.log(`Detected UUID-like command: ${potentialUUID}, treating as regular message`);
@@ -191,14 +264,30 @@ bot.on('message', async (msg) => {
   }
 
   // Ignore non-text messages or messages when no state exists
+  // Ignore non-text messages or messages when no state exists
   const state = userState[stateKey];
   if (!text || !state) {
+    console.log(`Ignoring message: no text or no state for ${stateKey}`);
     console.log(`Ignoring message: no text or no state for ${stateKey}`);
     return;
   }
 
   // Handle messages only when in awaiting_merchant state
+  // Handle messages only when in awaiting_merchant state
   if (state.step === 'awaiting_merchant') {
+    console.log(`Checking UUID: ${text}, replyToMessageId: ${replyToMessageId}, promptMessageId: ${state.promptMessageId}`);
+    // Temporarily relax reply check for debugging
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) {
+      console.log(`Processing valid merchant UUID: ${text}`);
+      sendMessageWithQueue(chatId, 'Fetching dashboard data, please wait...', {
+        reply_to_message_id: msg.message_id,
+      });
+      await fetchAndDisplayData(text, chatId, msg.message_id);
+      console.log(`Clearing user state for ${stateKey} after processing`);
+      delete userState[stateKey]; // Clear state after processing
+    } else {
+      console.log(`Ignoring invalid UUID format: ${text}`);
+      sendMessageWithQueue(chatId, 'Invalid UUID format. Please send a valid merchant UUID.', {
     console.log(`Checking UUID: ${text}, replyToMessageId: ${replyToMessageId}, promptMessageId: ${state.promptMessageId}`);
     // Temporarily relax reply check for debugging
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) {
@@ -217,10 +306,14 @@ bot.on('message', async (msg) => {
     }
   } else {
     console.log(`Ignoring message: invalid state for ${stateKey}`);
+  } else {
+    console.log(`Ignoring message: invalid state for ${stateKey}`);
   }
 });
 
 // Handle errors
+// Handle errors
 bot.on('polling_error', (error) => {
+  console.log(`Polling error: ${error.message}`);
   console.log(`Polling error: ${error.message}`);
 });

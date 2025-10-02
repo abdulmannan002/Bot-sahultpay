@@ -8,20 +8,18 @@ const FormData = require('form-data');
 // Configuration
 const config = {
     telegram: {
-        botToken: "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU",
-        userId: '-1002662637300'
+        botToken: "8262349183:AAG3htGtbqUVXUqV2Mcc8mGyAKjVpjiW_eU",
+        targets: ['-4978131704', '-1002976520998']
     },
     api: {
-        baseUrl: 'https://server.sahulatpay.com/transactions/tele/last-15-mins',
+        baseUrl: 'https://server.sahulatpay.com/disbursement/tele/last-15-10-mins',
         merchants: {
-            444: '?merchantId=444',
-            451: '?merchantId=451',
-            655: '?merchantId=655',
-            672: '?merchantId=672',
-            49: '?merchantId=49'
+            // 444: '?merchantId=444',
+            // 451: '?merchantId=451',
+            // 49: '?merchantId=49'
         }
     },
-    monitorInterval: 600000, // 10 minutes
+    monitorInterval: 300000,
     retryInterval: 60000, // 1 minute for server down retries
     acknowledgment: {
         retries: 3,
@@ -91,7 +89,7 @@ async function fetchTransactions(url) {
                 throw err;
             })
         );
-        const transactions = res.data.transactions || [];
+        const transactions = res.data.data.transactions || [];
         if (!transactions.length) {
             logger.warn(`No transactions returned from ${url}`, { response: res.data });
         }
@@ -112,7 +110,7 @@ async function checkServerStatus() {
 
 // Filter transactions by provider
 const filterTransactionsByProvider = (transactions, providerName) =>
-    transactions.filter(txn => txn.providerDetails?.name === providerName);
+    transactions.filter(txn => txn.provider === providerName);
 
 // Calculate success stats
 function calculateStats(transactions) {
@@ -127,17 +125,19 @@ function calculateStats(transactions) {
 // Send message to Telegram
 async function sendTelegramMessage(text) {
     try {
-        await telegramLimiter.schedule(() =>
-            pRetry(() =>
-                axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendMessage`, {
-                    chat_id: config.telegram.userId,
-                    text,
-                    parse_mode: 'Markdown'
-                }),
-                { retries: 2, minTimeout: 2000 }
-            )
-        );
-        logger.info("Telegram message sent", { text });
+        for (const chatId of config.telegram.targets) { // Loop through all targets
+            await telegramLimiter.schedule(() =>
+                pRetry(() =>
+                    axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendMessage`, {
+                        chat_id: chatId, // Use current target
+                        text,
+                        parse_mode: 'Markdown'
+                    }),
+                    { retries: 2, minTimeout: 2000 }
+                )
+            );
+        }
+        logger.info("Telegram message sent to all targets", { text });
     } catch (err) {
         logger.error("Telegram message failed", {
             error: { message: err.message, code: err.code, response: err.response?.data }
@@ -194,7 +194,7 @@ async function sendChart(statsMap) {
 
 // Generate report message
 function generateReportMessage(data, serverDown = false) {
-    let message = "🚨 *Transaction Success Rate Report* 🚨\n\n";
+    let message = "🚨 *Disbursement Transaction Success Rate Report* 🚨\n\n";
     if (serverDown) {
         message += "⚠️ *Server Down*: API is unreachable or returned no data. Retrying every 1 minute.\n\n";
     }
@@ -341,7 +341,7 @@ async function startMonitoring() {
         const statsMap = {};
         const { transactions: allTxns } = await fetchTransactions(config.api.baseUrl);
         statsMap["All Transactions"] = calculateStats(allTxns);
-        statsMap["All Easypaisa"] = calculateStats(filterTransactionsByProvider(allTxns, "Easypaisa"));
+        statsMap["All IBFT (easypaisa/bank)"] = calculateStats(filterTransactionsByProvider(allTxns, "Bank"));
         statsMap["All JazzCash"] = calculateStats(filterTransactionsByProvider(allTxns, "JazzCash"));
 
         const merchantTxns = await Promise.all(
@@ -350,10 +350,10 @@ async function startMonitoring() {
 
         Object.entries(config.api.merchants).forEach(([id, query], index) => {
             const { transactions: txns } = merchantTxns[index];
-            const name = id === "672" ? "ABC" : id === "444" ? "Monetix" : id === "655" ?  "PAY GAMES" : id === "451" ? "First Pay" : id === "49" ? "UNITY FINANCE " : `Merchant ${id}`;
-            const easypaisa = filterTransactionsByProvider(txns, "Easypaisa");
+            const name = id === "444" ? "Monetix" : id === "451" ? "First Pay" : id === "49" ? "UNITY FINANCE " : `Merchant ${id}`;
+            const IBFT = filterTransactionsByProvider(txns, "Bank");
             const jazzcash = filterTransactionsByProvider(txns, "JazzCash");
-            if (easypaisa.length) statsMap[`${name} Easypaisa`] = calculateStats(easypaisa);
+            if (IBFT.length) statsMap[`${name} IBFT`] = calculateStats(IBFT);
             if (jazzcash.length) statsMap[`${name} JazzCash`] = calculateStats(jazzcash);
         });
 

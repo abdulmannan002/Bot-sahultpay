@@ -348,167 +348,254 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Perform status inquiry for transactions (not payouts)
-if (type === "transaction" && uidMap) {
-  const providerName = transaction.providerDetails?.name?.toLowerCase();
-  let inquiryUrl, inquiryResponse, inquiryUid;
+    if (type === "transaction" && uidMap) {
+      const providerName = transaction.providerDetails?.name?.toLowerCase();
+      let inquiryUrl, inquiryResponse, inquiryUid;
 
-  try {
-    // Function to perform inquiry with a given UID
-    const performInquiry = async (uid, merchantId, transactionId) => {
-      if (providerName === "easypaisa") {
-        if ([5, 6, 8].includes(parseInt(merchantId))) {
-          return await axiosInstance.get(
-            `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`,
-            { params: { transaction_id: merchantTransactionId } }
-          );
+      try {
+        // Function to perform inquiry with a given UID
+        const performInquiry = async (uid, merchantId, transactionId) => {
+          if (providerName === "easypaisa") {
+            if ([5, 6, 8].includes(parseInt(merchantId))) {
+              return await axiosInstance.get(
+                `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
+              );
+            } else {
+              return await axiosInstance.get(
+                `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
+
+              );
+            }
+          } else if (providerName === "jazzcash") {
+            return await axiosInstance.get(
+              `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
+            );
+          }
+          throw new Error("Unsupported provider");
+        };
+
+        // Get merchant ID and mapped UUID
+        const merchantId = transaction.providerDetails?.id;
+        let mappedId = uidMap[merchantId];
+
+        // First attempt with mapped UUID
+        if (mappedId) {
+          console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
+          inquiryUid = mappedId;
+          inquiryResponse = await performInquiry(mappedId, merchantId, order);
+
+          // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
+          if (
+            inquiryResponse.data?.success === true &&
+            inquiryResponse.data?.message === "Transaction Not Found" &&
+            inquiryResponse.data?.data?.statusCode === 500
+          ) {
+            console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
+            // Fallback to transaction UID
+            const fallbackUid =
+              transaction.merchant?.uid ||
+              transaction.merchant?.groups?.[0]?.uid ||
+              transaction.merchant?.groups?.[0]?.merchant?.uid;
+            if (fallbackUid) {
+              console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
+              inquiryUid = fallbackUid;
+              inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
+            } else {
+              console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
+              await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
+              return;
+            }
+          }
         } else {
-          return await axiosInstance.get(
-            `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
-            
-          );
+          // No mapped ID, try transaction UID directly
+          const uid =
+            transaction.merchant?.uid ||
+            transaction.merchant?.groups?.[0]?.uid ||
+            transaction.merchant?.groups?.[0]?.merchant?.uid;
+          if (uid) {
+            console.log(`Performing ${providerName} inquiry with transaction UID: ${uid}`);
+            inquiryUid = uid;
+            inquiryResponse = await performInquiry(uid, merchantId, order);
+          } else {
+            console.error(`No UID found for transaction ${merchantTransactionId}`);
+            await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
+            return;
+          }
         }
-      } else if (providerName === "jazzcash") {
-        return await axiosInstance.get(
-          `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
-        );
-      }
-      throw new Error("Unsupported provider");
-    };
 
-    // Get merchant ID and mapped UUID
-    const merchantId = transaction.providerDetails?.id;
-    let mappedId = uidMap[merchantId];
+        console.log("Inquiry API Response:", inquiryResponse.data);
+        const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
+        const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
 
-    // First attempt with mapped UUID
-    if (mappedId) {
-      console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
-      inquiryUid = mappedId;
-      inquiryResponse = await performInquiry(mappedId, merchantId, order);
-
-      // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
-      if (
-        inquiryResponse.data?.success === true &&
-        inquiryResponse.data?.message === "Transaction Not Found" &&
-        inquiryResponse.data?.data?.statusCode === 500
-      ) {
-        console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
-        // Fallback to transaction UID
-        const fallbackUid =
-          transaction.merchant?.uid ||
-          transaction.merchant?.groups?.[0]?.uid ||
-          transaction.merchant?.groups?.[0]?.merchant?.uid;
-        if (fallbackUid) {
-          console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
-          inquiryUid = fallbackUid;
-          inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
+        if (inquiryStatus === "completed") {
+          await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
+          console.log(`Transaction ${merchantTransactionId} marked as completed.`);
+          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.`);
+        } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
+          await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
+          console.log(`Transaction ${merchantTransactionId} marked as failed.`);
+          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);
         } else {
-          console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
-          await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
-          return;
+          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Unknown status. Please contact support.`);
         }
+      } catch (error) {
+        console.error(`Error during inquiry for ${merchantTransactionId}:`, error.response?.data || error.message);
+        await bot.sendMessage(chatId, `Error checking status for transaction ${merchantTransactionId}. Please try again later.`);
       }
-    } else {
-      // No mapped ID, try transaction UID directly
-      const uid =
-        transaction.merchant?.uid ||
-        transaction.merchant?.groups?.[0]?.uid ||
-        transaction.merchant?.groups?.[0]?.merchant?.uid;
-      if (uid) {
-        console.log(`Performing ${providerName} inquiry with transaction UID: ${uid}`);
-        inquiryUid = uid;
-        inquiryResponse = await performInquiry(uid, merchantId, order);
+    } else if (type === "payout") {
+      // Handle payout status
+      if (status === "failed") {
+        console.log(`Payout ${merchantTransactionId} marked as failed.`);
+        await bot.sendMessage(chatId, `Payout status ${merchantTransactionId}: Failed`);
+      } else if (status === "pending") {
+        console.log(`Payout ${merchantTransactionId} is pending.`);
+        await bot.sendMessage(chatId, `Payout status ${merchantTransactionId}: Pending`);
       } else {
-        console.error(`No UID found for transaction ${merchantTransactionId}`);
-        await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
-        return;
+        console.log(`Payout ${merchantTransactionId} status unknown or not handled.`);
+        await bot.sendMessage(chatId, `Payout ${merchantTransactionId}: Unknown status. Please contact support.`);
       }
     }
-
-    console.log("Inquiry API Response:", inquiryResponse.data);
-    const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
-    const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
-
-    if (inquiryStatus === "completed") {
-      await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
-      console.log(`Transaction ${merchantTransactionId} marked as completed.`);
-      await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.`);
-    } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
-      await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
-      console.log(`Transaction ${merchantTransactionId} marked as failed.`);
-      await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);
-    } else {
-      await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Unknown status. Please contact support.`);
-    }
-  } catch (error) {
-    console.error(`Error during inquiry for ${merchantTransactionId}:`, error.response?.data || error.message);
-    await bot.sendMessage(chatId, `Error checking status for transaction ${merchantTransactionId}. Please try again later.`);
-  }
-} else if (type === "payout") {
-  // Handle payout status
-  if (status === "failed") {
-    console.log(`Payout ${merchantTransactionId} marked as failed.`);
-    await bot.sendMessage(chatId, `Payout status ${merchantTransactionId}: Failed`);
-  } else if (status === "pending") {
-    console.log(`Payout ${merchantTransactionId} is pending.`);
-    await bot.sendMessage(chatId, `Payout status ${merchantTransactionId}: Pending`);
-  } else {
-    console.log(`Payout ${merchantTransactionId} status unknown or not handled.`);
-    await bot.sendMessage(chatId, `Payout ${merchantTransactionId}: Unknown status. Please contact support.`);
-  }
-}
   } catch (error) {
     console.error(`Error handling ${type} for order ${order}:`, error.message);
     await bot.sendMessage(chatId, `Error processing ${type} ${order}`);
   }
 };
-
-// Handle /in command for transactions
-bot.onText(/\/in (.+)/, (msg, match) => {
+bot.onText(/\/pout/, (msg) => {
   const chatId = msg.chat.id;
-  const orders = match[1].trim().split(/\s+/);
-
-  if (orders.length === 0) {
-    bot.sendMessage(chatId, "Please provide at least one order ID.");
-    return;
-  }
-
-  orders.forEach(order => handleTransactionAndPayout(chatId, order, "transaction"));
-});
-
-// Handle /out command for payouts
-bot.onText(/\/out (.+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const orders = match[1].trim().split(/\s+/);
-
-  if (orders.length === 0) {
-    bot.sendMessage(chatId, "Please provide at least one order ID.");
-    return;
-  }
-
-  orders.forEach(order => handleTransactionAndPayout(chatId, order, "payout"));
-});
-
-// Handle image messages with caption
-bot.on("photo", (msg) => {
-  const chatId = msg.chat.id;
-
-  if (msg.caption) {
-    const parts = msg.caption.split(/\s+/);
-    const command = parts[0];
-    const orders = parts.slice(1);
-
-    if (command === "/out" || command === "/in") {
-      const type = command === "/out" ? "payout" : "transaction";
-      if (orders.length === 0) {
-        bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
-        return;
+  const removepend = `https://api.sahulatpay.com/backoffice/upd-disb`;
+  axios
+    .post(removepend)
+    .then((response) => {
+      if (response.data && response.data.statusCode === 200) {
+        console.log("Pending payouts removed:", response.data);
+        bot.sendMessage(chatId, `PAYOUT PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
+      } else {
+        bot.sendMessage(chatId, `Failed to remove pending payouts.`);
       }
-      orders.forEach(order => handleTransactionAndPayout(chatId, order.trim(), type));
+    })
+    .catch((error) => {
+      console.error("Error removing pending payouts:", error.message);
+      bot.sendMessage(chatId, `Error removing pending payouts: ${error.message}`);
+    });
+});
+bot.onText(/\/pin/, (msg) => {
+  const chatId = msg.chat.id;
+  const removepend = `https://api.sahulatpay.com/backoffice/upd-txn`;
+  axios
+    .post(removepend)
+    .then((response) => { if (response.data && response.data.statusCode === 200) {
+      console.log("Pending payin removed:", response.data);
+      bot.sendMessage(chatId, `PAYIN PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
+    } else {
+      bot.sendMessage(chatId, `Failed to remove pending payin.`);
     }
+    })
+    .catch((error) => {
+      console.error("Error removing pending payin:", error.message);
+      bot.sendMessage(chatId, `Error removing pending payin: ${error.message}`);
+    });
+});
+// Handle /pending command for pending payouts
+bot.onText(/\/pending (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const merchantUids = match[1].trim().split(/\s+/);
+
+  if (merchantUids.length === 0) {
+    bot.sendMessage(chatId, "Please provide at least one order ID.");
+    return;
   }
+
+  let payoutCount = 0;
+
+  for (const merchantUid of merchantUids) {
+    const payCount = await pendingStatus(chatId, merchantUid);
+    payoutCount += payCount;
+  }
+
+  bot.sendMessage(chatId, `Pending Payouts: ${payoutCount}`);
 });
 
-// Error handling for bot
-bot.on("polling_error", (error) => {
-  console.error("Polling error:", error.message);
-});
+const pendingStatus = async (chatId, merchantUid) => {
+  try {
+    console.log(`Fetching pending payout status for: ${merchantUid}`);
+
+    if (!merchantUid || typeof merchantUid !== "string" || merchantUid.trim() === "") {
+      await bot.sendMessage(chatId, `Invalid UID provided: ${merchantUid}`);
+      return 0;
+    }
+
+    const pendingUrl = `https://server.sahulatpay.com/disbursement/tele?status=pending&merchantuid=${merchantUid}`;
+
+    let response;
+    try {
+      response = await axiosInstance.get(pendingUrl);
+      console.log("API Response (payout):", response.data);
+    } catch (error) {
+      console.error(`Error fetching payout data for UID ${merchantUid}:`, error.message);
+      await bot.sendMessage(chatId, `Error fetching payout for UID ${merchantUid}: ${error.message}`);
+      return 0;
+    }
+
+    // ✅ Correct path
+    const items = response.data?.data?.transactions || [];
+    const pendingItems = items.filter(item => item.status === "pending");
+
+    return pendingItems.length;
+
+  } catch (error) {
+    console.error(`Unexpected error for UID ${merchantUid}:`, error.message);
+    await bot.sendMessage(chatId, `Unexpected error for UID ${merchantUid}: ${error.message}`);
+    return 0;
+  }
+};
+
+      // Handle /in command for transactions
+      bot.onText(/\/in (.+)/, (msg, match) => {
+        const chatId = msg.chat.id;
+        const orders = match[1].trim().split(/\s+/);
+
+        if (orders.length === 0) {
+          bot.sendMessage(chatId, "Please provide at least one order ID.");
+          return;
+        }
+
+        orders.forEach(order => handleTransactionAndPayout(chatId, order, "transaction"));
+      });
+
+      // Handle /out command for payouts
+      bot.onText(/\/out (.+)/, (msg, match) => {
+        const chatId = msg.chat.id;
+        const orders = match[1].trim().split(/\s+/);
+
+        if (orders.length === 0) {
+          bot.sendMessage(chatId, "Please provide at least one order ID.");
+          return;
+        }
+
+        orders.forEach(order => handleTransactionAndPayout(chatId, order, "payout"));
+      });
+
+      // Handle image messages with caption
+      bot.on("photo", (msg) => {
+        const chatId = msg.chat.id;
+
+        if (msg.caption) {
+          const parts = msg.caption.split(/\s+/);
+          const command = parts[0];
+          const orders = parts.slice(1);
+
+          if (command === "/out" || command === "/in") {
+            const type = command === "/out" ? "payout" : "transaction";
+            if (orders.length === 0) {
+              bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
+              return;
+            }
+            orders.forEach(order => handleTransactionAndPayout(chatId, order.trim(), type));
+          }
+        }
+      });
+
+      // Error handling for bot
+      bot.on("polling_error", (error) => {
+        console.error("Polling error:", error.message);
+      });

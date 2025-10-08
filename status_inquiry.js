@@ -2,7 +2,7 @@ const axios = require("axios");
 const express = require("express");
 const TelegramBot = require("node-telegram-bot-api");
 const dotenv = require("dotenv");
-import { toZonedTime, format } from "date-fns-tz";
+const { toZonedTime, format } = require("date-fns-tz");
 // Load environment variables
 dotenv.config();
 

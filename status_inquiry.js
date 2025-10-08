@@ -2,7 +2,7 @@ const axios = require("axios");
 const express = require("express");
 const TelegramBot = require("node-telegram-bot-api");
 const dotenv = require("dotenv");
-
+import { toZonedTime, format } from "date-fns-tz";
 // Load environment variables
 dotenv.config();
 
@@ -323,6 +323,16 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
     const status = transaction.status?.trim().toLowerCase();
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
+    const timeZone = "Asia/Karachi";
+    // Extract the date from transaction
+    const date = transaction.date_time;
+    // Convert to Pakistan timezone
+    const zonedDate = toZonedTime(new Date(date), timeZone);
+    // Format as compact string, e.g. "20251007221004"
+    const formattedDate = format(zonedDate, "yyyyMMddHHmmss", { timeZone });
+    const date_time = formattedDate
+
+    
     let txn_id;
 
       if (type === "payout") {

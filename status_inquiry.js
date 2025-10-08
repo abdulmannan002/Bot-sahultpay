@@ -325,7 +325,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
     const timeZone = "Asia/Karachi";
     // Extract the date from transaction
-    const date = transaction.date_time|| transaction.data.disbursementDate;
+    const date = transaction.date_time|| transaction.disbursementDate;
     // Convert to Pakistan timezone
     const zonedDate = toZonedTime(new Date(date), timeZone);
     // Format as compact string, e.g. "20251007221004"

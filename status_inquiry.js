@@ -325,7 +325,15 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
     const timeZone = "Asia/Karachi";
     // Extract the date from transaction
-    const date = transaction.date_time|| transaction.disbursementDate;
+    let date;
+
+      if (type === "payout") {
+        txn_id = transaction.disbursementDate;
+      } else {
+        txn_id = transaction.date_time 
+                  ? transaction.date_time 
+                  : transaction.transactionDateTime;
+      }
     // Convert to Pakistan timezone
     const zonedDate = toZonedTime(new Date(date), timeZone);
     // Format as compact string, e.g. "20251007221004"
@@ -448,8 +456,8 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
         if (inquiryStatus === "completed") {
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
-          console.log(`Transaction ${merchantTransactionId} marked as completed.`);
-          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.`);
+          console.log(`Transaction ${merchantTransactionId} marked as Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
+          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
         } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
           await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
           console.log(`Transaction ${merchantTransactionId} marked as failed.`);

@@ -352,7 +352,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
     // Handle completed transactions
     if (status === "completed") {
-      console.log(`Transaction ${merchantTransactionId} is already completed. TxnID: ${txn_id}`);
+      console.log(`Transaction ${merchantTransactionId} is already completed. TxnID: ${txn_id}. Date: ${date_time}`);
       const callbackUrl = type === "payout" ? PAYOUT_CALLBACK_API_URL : CALLBACK_API_URL;
 
       try {
@@ -361,7 +361,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}`);
       } catch (error) {
         console.error("Error calling callback API:", error.response?.data || error.message);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id}`);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id} `);
       }
       return;
     }

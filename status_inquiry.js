@@ -328,8 +328,8 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       if (type === "payout") {
         txn_id = transaction.transaction_id;
       } else {
-        txn_id = transaction.providerDetails.transactionID 
-                  ? transaction.providerDetails.transactionID 
+        txn_id = transaction.providerDetails.transactionId 
+                  ? transaction.providerDetails.transactionId 
                   : transaction.transaction_id;
       }
 

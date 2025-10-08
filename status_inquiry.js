@@ -358,10 +358,10 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       try {
         const callbackResponse = await axiosInstance.post(callbackUrl, { transactionIds: [merchantTransactionId] });
         console.log("Callback API Response:", callbackResponse.data);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}`);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
       } catch (error) {
         console.error("Error calling callback API:", error.response?.data || error.message);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id} `);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id}.\nDate: ${date_time} `);
       }
       return;
     }

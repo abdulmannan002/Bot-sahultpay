@@ -323,9 +323,16 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
     const status = transaction.status?.trim().toLowerCase();
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
-    const txn_id = type === "payout"
-  ? transaction.transaction_id
-  : transaction.providerDetails?.transactionID || transaction.transaction_id;
+    let txn_id;
+
+      if (type === "payout") {
+        txn_id = transaction.transaction_id;
+      } else {
+        txn_id = transaction.providerDetails.transactionID 
+                  ? transaction.providerDetails.transactionID 
+                  : transaction.transaction_id;
+      }
+
 
     if (!merchantTransactionId) {
       console.error("Error: merchantTransactionId is undefined.");

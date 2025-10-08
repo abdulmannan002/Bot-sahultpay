@@ -329,7 +329,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     // Convert to Pakistan timezone
     const zonedDate = toZonedTime(new Date(date), timeZone);
     // Format as compact string, e.g. "20251007221004"
-    const formattedDate = format(zonedDate, "yyyyMMddHHmmss", { timeZone });
+    const formattedDate = format(zonedDate, "yyyy-MM-dd HH:mm:ss", { timeZone });
     const date_time = formattedDate
 
     

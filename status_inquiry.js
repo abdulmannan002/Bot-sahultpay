@@ -328,9 +328,9 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     let date;
 
       if (type === "payout") {
-        txn_id = transaction.disbursementDate;
+        date = transaction.disbursementDate;
       } else {
-        txn_id = transaction.date_time 
+        date = transaction.date_time 
                   ? transaction.date_time 
                   : transaction.transactionDateTime;
       }

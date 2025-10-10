@@ -2,7 +2,7 @@ const axios = require("axios");
 const express = require("express");
 const TelegramBot = require("node-telegram-bot-api");
 const dotenv = require("dotenv");
-
+const { toZonedTime, format } = require("date-fns-tz");
 // Load environment variables
 dotenv.config();
 
@@ -86,7 +86,7 @@ const uidMap = {
   45: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (JazzCash)
 
   // EVOLVICA SOLUTIONS PRIVATE LIMITED (evolivica)
-  32: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica (JazzCash)
+  27: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica (JazzCash)
   87: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica
   88: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica
   89: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica
@@ -151,7 +151,7 @@ const uidMap = {
   204: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica
 
   // NEXTERA SPHERE (nextra)
-  46: "cc961e51-8c0e-44d4-9c25-56e39e992b88", // nextra (Animatrix)
+  65: "cc961e51-8c0e-44d4-9c25-56e39e992b88", // nextra (Learningrization)
   137: "cc961e51-8c0e-44d4-9c25-56e39e992b88", // nextra
   138: "cc961e51-8c0e-44d4-9c25-56e39e992b88", // nextra
   139: "cc961e51-8c0e-44d4-9c25-56e39e992b88", // nextra
@@ -261,7 +261,7 @@ const uidMap = {
   218: "6d612b47-6405-4237-9b0c-7d639eb960ee",
 
   // Animatrix
-  27: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15",
+  //27: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15",
 
   // Payfast UIDs
   5: "22943823-9a2d-4ab2-8d13-9b684ba8058d",
@@ -323,7 +323,34 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
     const status = transaction.status?.trim().toLowerCase();
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
-    const txn_id = transaction.transaction_id;
+    const timeZone = "Asia/Karachi";
+    // Extract the date from transaction
+    let date;
+
+      if (type === "payout") {
+        date = transaction.disbursementDate;
+      } else {
+        date = transaction.date_time 
+                  ? transaction.date_time 
+                  : transaction.transactionDateTime;
+      }
+    // Convert to Pakistan timezone
+    const zonedDate = toZonedTime(new Date(date), timeZone);
+    // Format as compact string, e.g. "20251007221004"
+    const formattedDate = format(zonedDate, "yyyy-MM-dd HH:mm:ss", { timeZone });
+    const date_time = formattedDate
+
+    
+    let txn_id;
+
+      if (type === "payout") {
+        txn_id = transaction.transaction_id;
+      } else {
+        txn_id = transaction.providerDetails.transactionId 
+                  ? transaction.providerDetails.transactionId 
+                  : transaction.transaction_id;
+      }
+
 
     if (!merchantTransactionId) {
       console.error("Error: merchantTransactionId is undefined.");
@@ -333,16 +360,16 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
     // Handle completed transactions
     if (status === "completed") {
-      console.log(`Transaction ${merchantTransactionId} is already completed. TxnID: ${txn_id}`);
+      console.log(`Transaction ${merchantTransactionId} is already completed. TxnID: ${txn_id}. Date: ${date_time}`);
       const callbackUrl = type === "payout" ? PAYOUT_CALLBACK_API_URL : CALLBACK_API_URL;
 
       try {
         const callbackResponse = await axiosInstance.post(callbackUrl, { transactionIds: [merchantTransactionId] });
         console.log("Callback API Response:", callbackResponse.data);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}`);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
       } catch (error) {
         console.error("Error calling callback API:", error.response?.data || error.message);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id}`);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id}.\nDate: ${date_time} `);
       }
       return;
     }
@@ -429,8 +456,8 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
         if (inquiryStatus === "completed") {
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
-          console.log(`Transaction ${merchantTransactionId} marked as completed.`);
-          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.`);
+          console.log(`Transaction ${merchantTransactionId} marked as Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
+          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
         } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
           await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
           console.log(`Transaction ${merchantTransactionId} marked as failed.`);

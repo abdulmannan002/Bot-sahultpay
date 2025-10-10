@@ -524,7 +524,7 @@ const pendingStatus = async (chatId, merchantUid) => {
       return 0;
     }
 
-    const pendingUrl = `https://server.sahulatpay.com/disbursement/tele?status=pending&merchantuid=${merchantUid}`;
+    const pendingUrl = `https://server.sahulatpay.com/disbursement/tele?status=pending&uid=${merchantUid}`;
 
     let response;
     try {

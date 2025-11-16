@@ -390,31 +390,39 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     }
 
     // Perform status inquiry for transactions (not payouts)
+    // Inside handleTransactionAndPayout, replace the entire "inquiry" block for transaction type
     if (type === "transaction" && uidMap) {
       const providerName = transaction.providerDetails?.name?.toLowerCase();
       let inquiryUrl, inquiryResponse, inquiryUid;
-
+    
       try {
-        // Function to perform inquiry with a given UID
-        const performInquiry = async (uid, merchantId, transactionId) => {
-          if (providerName === "easypaisa") {
-            if ([5, 6, 8].includes(parseInt(merchantId))) {
-              return await axiosInstance.get(
-                `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
-              );
-            } else {
-              return await axiosInstance.get(
-                `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
-
-              );
-            }
-          } else if (providerName === "jazzcash") {
-            return await axiosInstance.get(
-              `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
+        // === EASYPAISA SPECIAL HANDLING ===
+        if (providerName === "easypaisa" && (status === "pending" || status === "failed")) {
+          const hasAccountName = !!transaction.providerDetails?.sub_merchant;
+    
+          if (hasAccountName) {
+            // Use NEW API if account_name exists
+            console.log(`Using new EasyPaisa API for order ${order} (has account_name)`);
+            inquiryResponse = await axiosInstance.get(
+              `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
             );
-          }
-          throw new Error("Unsupported provider");
-        };
+          } else {
+            // Fallback: Normal inquiry with UID
+            const merchantId = transaction.providerDetails?.id;
+            let mappedId = uidMap[merchantId];
+    
+            const performInquiry = async (uid) => {
+              if ([5, 6, 8].includes(parseInt(merchantId))) {
+                return await axiosInstance.get(
+                  `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${order}`
+                );
+              } else {
+                return await axiosInstance.get(
+                  `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`
+                );
+              }
+            };
+
 
         // Get merchant ID and mapped UUID
         const merchantId = transaction.providerDetails?.id;

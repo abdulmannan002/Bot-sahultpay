@@ -339,33 +339,27 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     const status = transaction.status?.trim().toLowerCase();
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
     const timeZone = "Asia/Karachi";
+
     // Extract the date from transaction
     let date;
+    if (type === "payout") {
+      date = transaction.disbursementDate;
+    } else {
+      date = transaction.date_time ? transaction.date_time : transaction.transactionDateTime;
+    }
 
-      if (type === "payout") {
-        date = transaction.disbursementDate;
-      } else {
-        date = transaction.date_time 
-                  ? transaction.date_time 
-                  : transaction.transactionDateTime;
-      }
-    // Convert to Pakistan timezone
+    // Convert to Pakistan timezone and format
     const zonedDate = toZonedTime(new Date(date), timeZone);
-    // Format as compact string, e.g. "20251007221004"
     const formattedDate = format(zonedDate, "yyyy-MM-dd HH:mm:ss", { timeZone });
-    const date_time = formattedDate
+    const date_time = formattedDate;
 
-    
+    // Determine txn id
     let txn_id;
-
-      if (type === "payout") {
-        txn_id = transaction.transaction_id;
-      } else {
-        txn_id = transaction.providerDetails.transactionId 
-                  ? transaction.providerDetails.transactionId 
-                  : transaction.transaction_id;
-      }
-
+    if (type === "payout") {
+      txn_id = transaction.transaction_id;
+    } else {
+      txn_id = transaction.providerDetails?.transactionId ? transaction.providerDetails.transactionId : transaction.transaction_id;
+    }
 
     if (!merchantTransactionId) {
       console.error("Error: merchantTransactionId is undefined.");
@@ -373,7 +367,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       return;
     }
 
-    // Handle completed transactions
+    // Handle already completed transactions
     if (status === "completed") {
       console.log(`Transaction ${merchantTransactionId} is already completed. TxnID: ${txn_id}. Date: ${date_time}`);
       const callbackUrl = type === "payout" ? PAYOUT_CALLBACK_API_URL : CALLBACK_API_URL;
@@ -384,22 +378,20 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
       } catch (error) {
         console.error("Error calling callback API:", error.response?.data || error.message);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id}.\nDate: ${date_time} `);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed, TxnID: ${txn_id}.\nDate: ${date_time}`);
       }
       return;
     }
 
-    // Perform status inquiry for transactions (not payouts)
-    // Inside handleTransactionAndPayout, replace the entire "inquiry" block for transaction type
+    // Transaction inquiry flow
     if (type === "transaction" && uidMap) {
       const providerName = transaction.providerDetails?.name?.toLowerCase();
-      let inquiryUrl, inquiryResponse, inquiryUid;
-    
+      let inquiryResponse;
       try {
-        // === EASYPAISA SPECIAL HANDLING ===
+        // Special handling for Easypaisa
         if (providerName === "easypaisa" && (status === "pending" || status === "failed")) {
           const hasAccountName = !!transaction.providerDetails?.sub_merchant;
-    
+
           if (hasAccountName) {
             // Use NEW API if account_name exists
             console.log(`Using new EasyPaisa API for order ${order} (has account_name)`);
@@ -407,10 +399,10 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
             );
           } else {
-            // Fallback: Normal inquiry with UID
+            // Fallback: use UID-based inquiry
             const merchantId = transaction.providerDetails?.id;
-            let mappedId = uidMap[merchantId];
-    
+            const mappedId = uidMap[merchantId];
+
             const performInquiry = async (uid) => {
               if ([5, 6, 8].includes(parseInt(merchantId))) {
                 return await axiosInstance.get(
@@ -423,54 +415,95 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               }
             };
 
+            if (mappedId) {
+              console.log(`Performing ${providerName} inquiry with mapped UUID: ${mappedId}`);
+              inquiryResponse = await performInquiry(mappedId);
 
-        // Get merchant ID and mapped UUID
-        const merchantId = transaction.providerDetails?.id;
-        let mappedId = uidMap[merchantId];
-
-        // First attempt with mapped UUID
-        if (mappedId) {
-          console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
-          inquiryUid = mappedId;
-          inquiryResponse = await performInquiry(mappedId, merchantId, order);
-
-          // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
-          if (
-            inquiryResponse.data?.success === true &&
-            inquiryResponse.data?.message === "Transaction Not Found" &&
-            inquiryResponse.data?.data?.statusCode === 500
-          ) {
-            console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
-            // Fallback to transaction UID
-            const fallbackUid =
-              transaction.merchant?.uid ||
-              transaction.merchant?.groups?.[0]?.uid ||
-              transaction.merchant?.groups?.[0]?.merchant?.uid;
-            if (fallbackUid) {
-              console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
-              inquiryUid = fallbackUid;
-              inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
+              if (
+                inquiryResponse.data?.success === true &&
+                inquiryResponse.data?.message === "Transaction Not Found" &&
+                inquiryResponse.data?.data?.statusCode === 500
+              ) {
+                const fallbackUid =
+                  transaction.merchant?.uid ||
+                  transaction.merchant?.groups?.[0]?.uid ||
+                  transaction.merchant?.groups?.[0]?.merchant?.uid;
+                if (fallbackUid) {
+                  console.log(`Fallback to transaction UID: ${fallbackUid}`);
+                  inquiryResponse = await performInquiry(fallbackUid);
+                } else {
+                  console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
+                  await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
+                  return;
+                }
+              }
             } else {
-              console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
-              await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
-              return;
+              const uid =
+                transaction.merchant?.uid ||
+                transaction.merchant?.groups?.[0]?.uid ||
+                transaction.merchant?.groups?.[0]?.merchant?.uid;
+              if (uid) {
+                console.log(`Performing ${providerName} inquiry with transaction UID: ${uid}`);
+                inquiryResponse = await performInquiry(uid);
+              } else {
+                console.error(`No UID found for transaction ${merchantTransactionId}`);
+                await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
+                return;
+              }
             }
           }
         } else {
-          // No mapped ID, try transaction UID directly
-          const uid =
-            transaction.merchant?.uid ||
-            transaction.merchant?.groups?.[0]?.uid ||
-            transaction.merchant?.groups?.[0]?.merchant?.uid;
-          if (uid) {
-            console.log(`Performing ${providerName} inquiry with transaction UID: ${uid}`);
-            inquiryUid = uid;
-            inquiryResponse = await performInquiry(uid, merchantId, order);
+          // Generic inquiry for non-easypaisa providers
+          const merchantId = transaction.providerDetails?.id;
+          const mappedId = uidMap[merchantId];
+
+          const performInquiry = async (uid) => {
+            if ([5, 6, 8].includes(parseInt(merchantId))) {
+              return await axiosInstance.get(
+                `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${order}`
+              );
+            } else {
+              return await axiosInstance.get(
+                `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`
+              );
+            }
+          };
+
+          if (mappedId) {
+            inquiryResponse = await performInquiry(mappedId);
+            if (
+              inquiryResponse.data?.success === true &&
+              inquiryResponse.data?.message === "Transaction Not Found" &&
+              inquiryResponse.data?.data?.statusCode === 500
+            ) {
+              const fallbackUid =
+                transaction.merchant?.uid ||
+                transaction.merchant?.groups?.[0]?.uid ||
+                transaction.merchant?.groups?.[0]?.merchant?.uid;
+              if (fallbackUid) {
+                inquiryResponse = await performInquiry(fallbackUid);
+              } else {
+                await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
+                return;
+              }
+            }
           } else {
-            console.error(`No UID found for transaction ${merchantTransactionId}`);
-            await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
-            return;
+            const uid =
+              transaction.merchant?.uid ||
+              transaction.merchant?.groups?.[0]?.uid ||
+              transaction.merchant?.groups?.[0]?.merchant?.uid;
+            if (uid) {
+              inquiryResponse = await performInquiry(uid);
+            } else {
+              await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
+              return;
+            }
           }
+        } // end of provider-specific inquiry handling
+
+        // If we don't have any inquiryResponse here, something went wrong
+        if (!inquiryResponse) {
+          throw new Error("No inquiry response received");
         }
 
         console.log("Inquiry API Response:", inquiryResponse.data);

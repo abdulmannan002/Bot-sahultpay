@@ -327,29 +327,29 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     // Extract the date from transaction
     let date;
 
-    if (type === "payout") {
-      date = transaction.disbursementDate;
-    } else {
-      date = transaction.date_time
-        ? transaction.date_time
-        : transaction.transactionDateTime;
-    }
+      if (type === "payout") {
+        date = transaction.disbursementDate;
+      } else {
+        date = transaction.date_time 
+                  ? transaction.date_time 
+                  : transaction.transactionDateTime;
+      }
     // Convert to Pakistan timezone
     const zonedDate = toZonedTime(new Date(date), timeZone);
     // Format as compact string, e.g. "20251007221004"
     const formattedDate = format(zonedDate, "yyyy-MM-dd HH:mm:ss", { timeZone });
     const date_time = formattedDate
 
-
+    
     let txn_id;
 
-    if (type === "payout") {
-      txn_id = transaction.transaction_id;
-    } else {
-      txn_id = transaction.providerDetails.transactionId
-        ? transaction.providerDetails.transactionId
-        : transaction.transaction_id;
-    }
+      if (type === "payout") {
+        txn_id = transaction.transaction_id;
+      } else {
+        txn_id = transaction.providerDetails.transactionId 
+                  ? transaction.providerDetails.transactionId 
+                  : transaction.transaction_id;
+      }
 
 
     if (!merchantTransactionId) {
@@ -389,15 +389,14 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               );
             } else if (providerName === "easypaisa" && (status === "pending" || status === "failed")) {
               const hasAccountName = !!transaction.providerDetails?.sub_merchant;
-
+    
               if (hasAccountName) {
                 // Use NEW API if account_name exists
                 console.log(`Using new EasyPaisa API for order ${transactionId} (has account_name)`);
                 inquiryResponse = await axiosInstance.get(
                   `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
                 );
-              }
-            } else {
+              }  } else {
               return await axiosInstance.get(
                 `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
 
@@ -428,27 +427,26 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
             inquiryResponse.data?.data?.statusCode === 500
           ) {
             console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
-            if (providerName === "easypaisa") {
-              console.log(`Transaction ${providerName} attempting in fallback `);
-              inquiryResponse = await axiosInstance.get(
-                `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
-              );
-            } else {
-              console.log(`Transaction ${providerName} attempting in fallback `);
-              // Fallback to transaction UID
-              const fallbackUid =
-                transaction.merchant?.uid ||
-                transaction.merchant?.groups?.[0]?.uid ||
-                transaction.merchant?.groups?.[0]?.merchant?.uid;
-              if (fallbackUid) {
-                console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
-                inquiryUid = fallbackUid;
-                inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
+            // Fallback to transaction UID
+            const fallbackUid =
+              transaction.merchant?.uid ||
+              transaction.merchant?.groups?.[0]?.uid ||
+              transaction.merchant?.groups?.[0]?.merchant?.uid;
+            if (fallbackUid) {
+              if (providerName === "easypaisa") {
+                console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid} fallback`);
+                inquiryResponse = await axiosInstance.get(
+                  `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
+                );
               } else {
-                console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
-                await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
-                return;
+              console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
+              inquiryUid = fallbackUid;
+              inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
               }
+            } else {
+              console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
+              await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
+              return;
             }
           }
         } else {
@@ -528,13 +526,12 @@ bot.onText(/\/pin/, (msg) => {
   const removepend = `https://api.sahulatpay.com/backoffice/upd-txn`;
   axios
     .post(removepend)
-    .then((response) => {
-      if (response.data && response.data.statusCode === 200) {
-        console.log("Pending payin removed:", response.data);
-        bot.sendMessage(chatId, `PAYIN PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
-      } else {
-        bot.sendMessage(chatId, `Failed to remove pending payin.`);
-      }
+    .then((response) => { if (response.data && response.data.statusCode === 200) {
+      console.log("Pending payin removed:", response.data);
+      bot.sendMessage(chatId, `PAYIN PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
+    } else {
+      bot.sendMessage(chatId, `Failed to remove pending payin.`);
+    }
     })
     .catch((error) => {
       console.error("Error removing pending payin:", error.message);
@@ -595,53 +592,53 @@ const pendingStatus = async (chatId, merchantUid) => {
   }
 };
 
-// Handle /in command for transactions
-bot.onText(/\/in (.+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const orders = match[1].trim().split(/\s+/);
+      // Handle /in command for transactions
+      bot.onText(/\/in (.+)/, (msg, match) => {
+        const chatId = msg.chat.id;
+        const orders = match[1].trim().split(/\s+/);
 
-  if (orders.length === 0) {
-    bot.sendMessage(chatId, "Please provide at least one order ID.");
-    return;
-  }
+        if (orders.length === 0) {
+          bot.sendMessage(chatId, "Please provide at least one order ID.");
+          return;
+        }
 
-  orders.forEach(order => handleTransactionAndPayout(chatId, order, "transaction"));
-});
+        orders.forEach(order => handleTransactionAndPayout(chatId, order, "transaction"));
+      });
 
-// Handle /out command for payouts
-bot.onText(/\/out (.+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const orders = match[1].trim().split(/\s+/);
+      // Handle /out command for payouts
+      bot.onText(/\/out (.+)/, (msg, match) => {
+        const chatId = msg.chat.id;
+        const orders = match[1].trim().split(/\s+/);
 
-  if (orders.length === 0) {
-    bot.sendMessage(chatId, "Please provide at least one order ID.");
-    return;
-  }
+        if (orders.length === 0) {
+          bot.sendMessage(chatId, "Please provide at least one order ID.");
+          return;
+        }
 
-  orders.forEach(order => handleTransactionAndPayout(chatId, order, "payout"));
-});
+        orders.forEach(order => handleTransactionAndPayout(chatId, order, "payout"));
+      });
 
-// Handle image messages with caption
-bot.on("photo", (msg) => {
-  const chatId = msg.chat.id;
+      // Handle image messages with caption
+      bot.on("photo", (msg) => {
+        const chatId = msg.chat.id;
 
-  if (msg.caption) {
-    const parts = msg.caption.split(/\s+/);
-    const command = parts[0];
-    const orders = parts.slice(1);
+        if (msg.caption) {
+          const parts = msg.caption.split(/\s+/);
+          const command = parts[0];
+          const orders = parts.slice(1);
 
-    if (command === "/out" || command === "/in") {
-      const type = command === "/out" ? "payout" : "transaction";
-      if (orders.length === 0) {
-        bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
-        return;
-      }
-      orders.forEach(order => handleTransactionAndPayout(chatId, order.trim(), type));
-    }
-  }
-});
+          if (command === "/out" || command === "/in") {
+            const type = command === "/out" ? "payout" : "transaction";
+            if (orders.length === 0) {
+              bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
+              return;
+            }
+            orders.forEach(order => handleTransactionAndPayout(chatId, order.trim(), type));
+          }
+        }
+      });
 
-// Error handling for bot
-bot.on("polling_error", (error) => {
-  console.error("Polling error:", error.message);
-});
+      // Error handling for bot
+      bot.on("polling_error", (error) => {
+        console.error("Polling error:", error.message);
+      });

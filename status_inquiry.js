@@ -392,9 +392,9 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     
               if (hasAccountName) {
                 // Use NEW API if account_name exists
-                console.log(`Using new EasyPaisa API for order ${transactionId} (has account_name)`);
+                console.log(`Using new EasyPaisa API for order ${order} (has account_name)`);
                 inquiryResponse = await axiosInstance.get(
-                  `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
+                  `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
                 );
               }  } else {
               return await axiosInstance.get(

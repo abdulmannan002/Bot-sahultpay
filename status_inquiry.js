@@ -79,11 +79,12 @@ const uidMap = {
   243: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
   244: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
   245: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
-  246: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c10)
-  247: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c11)
-  248: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c12)
-  249: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c13)
+  246: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
+  247: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
+  248: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
+  249: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
   45: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (JazzCash)
+  303: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
 
   // EVOLVICA SOLUTIONS PRIVATE LIMITED (evolivica)
   27: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica (JazzCash)
@@ -159,109 +160,123 @@ const uidMap = {
   143: "cc961e51-8c0e-44d4-9c25-56e39e992b88", // nextra
 
   // DEVTECTS PRIVATE LIMITED
-  263: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  264: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  265: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  266: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  267: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  268: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  269: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  270: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  271: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  272: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  273: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  274: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  275: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  276: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  277: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  278: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  279: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  280: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  281: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  282: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  283: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  284: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  285: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  286: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  287: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  288: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  289: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  290: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  291: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  292: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  293: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  295: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  296: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  297: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  298: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  299: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
-  300: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  136: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  263: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  264: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  265: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  266: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  267: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  268: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  269: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  270: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  271: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  272: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  273: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  274: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  275: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  276: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  277: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  278: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  279: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  280: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  281: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  282: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  283: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  284: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  285: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  286: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  287: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  288: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  289: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  290: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  291: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  292: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  293: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  294: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  295: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  296: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  297: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  298: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  299: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  300: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  302: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  78: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects Jazz cash
 
   // DIGIFYTIVE PRIVATE LIMITED
-  219: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  220: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  221: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  223: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  224: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  225: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  226: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  227: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  228: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  229: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  230: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  231: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  232: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  233: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  234: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  235: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  236: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  237: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
-  238: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  219: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  220: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  221: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  223: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  224: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  225: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  226: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  227: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  228: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  229: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  230: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  231: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  232: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  233: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  234: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  235: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  236: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  237: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  238: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  301: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  304: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  305: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
+  79: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive Jazz cash
 
   // DOVANTIS SOLUTIONS PRIVATE LIMITED
-  205: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
-  206: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
-  207: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
-  208: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
-  209: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
-  210: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
+  205: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
+  206: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
+  207: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
+  208: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
+  209: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
+  210: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
+  74: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis Jazz cash
 
   // MONIC TECH PRIVATE LIMITED
-  250: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  251: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  252: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  253: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  254: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  255: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  256: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  257: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  258: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  259: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  260: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  261: "05ac708a-2a63-49f1-a77d-dd040c850e14",
-  262: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  250: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  251: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  252: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  253: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  254: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  255: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  256: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  257: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  258: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  259: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  260: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  261: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  262: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  306: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  307: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
+  80: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic Jazz cash
 
   // SASTA TECH SOLUTIONS & SASTA TECH SOLUTIONS PRIVATE LIMITED
   7: "6d612b47-6405-4237-9b0c-7d639eb960ee", // JazzCash
-  126: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  127: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  128: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  129: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  130: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  131: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  132: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  133: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  134: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  135: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  211: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  212: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  213: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  215: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  217: "6d612b47-6405-4237-9b0c-7d639eb960ee",
-  218: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  126: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  127: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  128: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  129: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  130: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  131: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  132: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  133: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  134: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  135: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  211: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  212: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  213: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  215: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  217: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  218: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
 
   // Animatrix
-  //27: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15",
+  85: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15",
+  //Marketing motion
+  84: "a37a6b7c-32f3-423b-968e-9fd709b6ccc3",
 
   // Payfast UIDs
   5: "22943823-9a2d-4ab2-8d13-9b684ba8058d",
@@ -387,16 +402,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               return await axiosInstance.get(
                 `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
               );
-            } else if (providerName === "easypaisa" && (status === "pending" || status === "failed")) {
-              const hasAccountName = !!transaction.providerDetails?.sub_merchant;
-    
-              if (hasAccountName) {
-                // Use NEW API if account_name exists
-                console.log(`Using new EasyPaisa API for order ${order} (has account_name)`);
-                inquiryResponse = await axiosInstance.get(
-                  `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
-                );
-              }  } else {
+            } else {
               return await axiosInstance.get(
                 `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
 

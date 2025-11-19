@@ -18,6 +18,9 @@ const config = {
             451: '?merchantId=451',
             655: '?merchantId=655',
             672: '?merchantId=672',
+            70: '?merchantId=70',
+            603: '?merchantId=603',
+            805: '?merchantId=805',
             49: '?merchantId=49'
         }
     },
@@ -350,7 +353,18 @@ async function startMonitoring() {
 
         Object.entries(config.api.merchants).forEach(([id, query], index) => {
             const { transactions: txns } = merchantTxns[index];
-            const name = id === "672" ? "ABC" : id === "444" ? "Monetix" : id === "655" ?  "PAY GAMES" : id === "451" ? "First Pay" : id === "49" ? "UNITY FINANCE " : `Merchant ${id}`;
+            const merchantNameMap = {
+              "672": "ABC 1",
+              "444": "Monetix",
+              "655": "PAY GAMES",
+              "451": "First Pay",
+              "49": "UNITY FINANCE",
+              "70": "ABC 2",
+              "603": "ABC 3",
+              "805": "ABC 4",
+            };
+            
+            const name = merchantNameMap[id] || `Merchant ${id}`;
             const easypaisa = filterTransactionsByProvider(txns, "Easypaisa");
             const jazzcash = filterTransactionsByProvider(txns, "JazzCash");
             if (easypaisa.length) statsMap[`${name} Easypaisa`] = calculateStats(easypaisa);

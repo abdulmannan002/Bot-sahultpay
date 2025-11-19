@@ -8,10 +8,10 @@ dotenv.config();
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.STATUS_PORT || 4007;
+// const PORT = process.env.STATUS_PORT || 4007;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(3000, () => {
+  console.log(`Server running on port ${3000}`);
 });
 
 app.get("/", (req, res) => {
@@ -19,7 +19,7 @@ app.get("/", (req, res) => {
 });
 
 // Bot configuration
-const BOT_TOKEN = process.env.BOT_TOKEN || "7974668426:AAGVRkkxj0JD9RKrpmb2PUCxJdBWGS3fA-k";
+const BOT_TOKEN = "7974668426:AAGVRkkxj0JD9RKrpmb2PUCxJdBWGS3fA-k";
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 // API URLs
@@ -33,7 +33,8 @@ const FAIL_API_URL = `${API_BACKOFFICE_URL}/backoffice/fail-transactions/tele`;
 
 // Configure axios with timeouts
 const axiosInstance = axios.create({
-  timeout: 45000, // Increased to 45 seconds
+  timeout: 600000, // Increased to 45 seconds
+  validateStatus: () => true
 });
 
 // Configure axios-retry
@@ -200,6 +201,7 @@ const uidMap = {
   299: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
   300: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
   302: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
+  309: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
   78: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects Jazz cash
 
   // DIGIFYTIVE PRIVATE LIMITED
@@ -342,29 +344,29 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     // Extract the date from transaction
     let date;
 
-      if (type === "payout") {
-        date = transaction.disbursementDate;
-      } else {
-        date = transaction.date_time 
-                  ? transaction.date_time 
-                  : transaction.transactionDateTime;
-      }
+    if (type === "payout") {
+      date = transaction.disbursementDate;
+    } else {
+      date = transaction.date_time
+        ? transaction.date_time
+        : transaction.transactionDateTime;
+    }
     // Convert to Pakistan timezone
     const zonedDate = toZonedTime(new Date(date), timeZone);
     // Format as compact string, e.g. "20251007221004"
     const formattedDate = format(zonedDate, "yyyy-MM-dd HH:mm:ss", { timeZone });
     const date_time = formattedDate
 
-    
+
     let txn_id;
 
-      if (type === "payout") {
-        txn_id = transaction.transaction_id;
-      } else {
-        txn_id = transaction.providerDetails.transactionId 
-                  ? transaction.providerDetails.transactionId 
-                  : transaction.transaction_id;
-      }
+    if (type === "payout") {
+      txn_id = transaction.transaction_id;
+    } else {
+      txn_id = transaction.providerDetails.transactionId
+        ? transaction.providerDetails.transactionId
+        : transaction.transaction_id;
+    }
 
 
     if (!merchantTransactionId) {
@@ -396,26 +398,59 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
       try {
         // Function to perform inquiry with a given UID
+        // const performInquiry = async (uid, merchantId, transactionId) => {
+        //   if (providerName === "easypaisa") {
+        //     const hasAccountName = !!transaction.providerDetails?.sub_merchant;
+        //     if (hasAccountName) {
+        //       // Use NEW API if account_name exists
+        //       console.log(`Using new EasyPaisa API for order ${transactionId} (has account_name)`);
+        //       inquiryResponse = await axiosInstance.get(
+        //         `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
+        //       );
+        //       return inquiryResponse
+        //     } else if ([5, 6, 8].includes(parseInt(merchantId))) {
+        //       return await axiosInstance.get(
+        //         `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
+        //       );
+        //     } else {
+        //       return await axiosInstance.get(
+        //         `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
+
+        //       );
+        //     }
+        //   } else if (providerName === "jazzcash") {
+        //     return await axiosInstance.get(
+        //       `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
+        //     );
+        //   }
+        //   else {
+        //     throw new Error("Unsupported provider");
+        //   }
+        // };
+
         const performInquiry = async (uid, merchantId, transactionId) => {
           if (providerName === "easypaisa") {
-            if ([5, 6, 8].includes(parseInt(merchantId))) {
-              return await axiosInstance.get(
-                `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
-              );
-            } else {
-              return await axiosInstance.get(
-                `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
-
-              );
-            }
+            // Use NEW API if account_name exists
+            console.log(`Using new EasyPaisa API for order ${transactionId} (has account_name)`);
+            inquiryResponse = await axiosInstance.get(
+              `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
+            );
+            return inquiryResponse
           } else if (providerName === "jazzcash") {
             return await axiosInstance.get(
               `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
             );
           }
-          throw new Error("Unsupported provider");
+          else {
+            throw new Error("Unsupported provider");
+          }
         };
 
+        const performOldInquiry = async (uid, merchantId, transactionId) => {
+          return await axiosInstance.get(
+            `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
+          );
+        }
         // Get merchant ID and mapped UUID
         const merchantId = transaction.providerDetails?.id;
         let mappedId = uidMap[merchantId];
@@ -425,14 +460,18 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
           inquiryUid = mappedId;
           inquiryResponse = await performInquiry(mappedId, merchantId, order);
+          console.log("Success: ",inquiryResponse.data.success)
+          console.log("Message: ",inquiryResponse.data.message)
+          console.log("Code: ",inquiryResponse.data?.data.statusCode)
 
           // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
           if (
-            inquiryResponse.data?.success === true &&
-            inquiryResponse.data?.message === "Transaction Not Found" &&
-            inquiryResponse.data?.data?.statusCode === 500
+            inquiryResponse.data.success == false &&
+            inquiryResponse.data.message === "Transaction not found" &&
+            inquiryResponse.data?.data.statusCode === 404
           ) {
             console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
+            // performInquiry(mappedId, merchantId, order);
             // Fallback to transaction UID
             const fallbackUid =
               transaction.merchant?.uid ||
@@ -441,7 +480,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
             if (fallbackUid) {
               console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
               inquiryUid = fallbackUid;
-              inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
+              inquiryResponse = await performOldInquiry(fallbackUid, merchantId, order);
             } else {
               console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
               await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
@@ -449,6 +488,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
             }
           }
         } else {
+          inquiryResponse = await performInquiry(uid, merchantId, order);
           // No mapped ID, try transaction UID directly
           const uid =
             transaction.merchant?.uid ||
@@ -469,7 +509,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
         const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
 
-        if (inquiryStatus === "completed") {
+        if (inquiryStatus === "completed" || inquiryStatus == 'paid') {
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
           console.log(`Transaction ${merchantTransactionId} marked as Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
@@ -525,12 +565,13 @@ bot.onText(/\/pin/, (msg) => {
   const removepend = `https://api.sahulatpay.com/backoffice/upd-txn`;
   axios
     .post(removepend)
-    .then((response) => { if (response.data && response.data.statusCode === 200) {
-      console.log("Pending payin removed:", response.data);
-      bot.sendMessage(chatId, `PAYIN PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
-    } else {
-      bot.sendMessage(chatId, `Failed to remove pending payin.`);
-    }
+    .then((response) => {
+      if (response.data && response.data.statusCode === 200) {
+        console.log("Pending payin removed:", response.data);
+        bot.sendMessage(chatId, `PAYIN PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
+      } else {
+        bot.sendMessage(chatId, `Failed to remove pending payin.`);
+      }
     })
     .catch((error) => {
       console.error("Error removing pending payin:", error.message);
@@ -591,53 +632,53 @@ const pendingStatus = async (chatId, merchantUid) => {
   }
 };
 
-      // Handle /in command for transactions
-      bot.onText(/\/in (.+)/, (msg, match) => {
-        const chatId = msg.chat.id;
-        const orders = match[1].trim().split(/\s+/);
+// Handle /in command for transactions
+bot.onText(/\/in (.+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const orders = match[1].trim().split(/\s+/);
 
-        if (orders.length === 0) {
-          bot.sendMessage(chatId, "Please provide at least one order ID.");
-          return;
-        }
+  if (orders.length === 0) {
+    bot.sendMessage(chatId, "Please provide at least one order ID.");
+    return;
+  }
 
-        orders.forEach(order => handleTransactionAndPayout(chatId, order, "transaction"));
-      });
+  orders.forEach(order => handleTransactionAndPayout(chatId, order, "transaction"));
+});
 
-      // Handle /out command for payouts
-      bot.onText(/\/out (.+)/, (msg, match) => {
-        const chatId = msg.chat.id;
-        const orders = match[1].trim().split(/\s+/);
+// Handle /out command for payouts
+bot.onText(/\/out (.+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const orders = match[1].trim().split(/\s+/);
 
-        if (orders.length === 0) {
-          bot.sendMessage(chatId, "Please provide at least one order ID.");
-          return;
-        }
+  if (orders.length === 0) {
+    bot.sendMessage(chatId, "Please provide at least one order ID.");
+    return;
+  }
 
-        orders.forEach(order => handleTransactionAndPayout(chatId, order, "payout"));
-      });
+  orders.forEach(order => handleTransactionAndPayout(chatId, order, "payout"));
+});
 
-      // Handle image messages with caption
-      bot.on("photo", (msg) => {
-        const chatId = msg.chat.id;
+// Handle image messages with caption
+bot.on("photo", (msg) => {
+  const chatId = msg.chat.id;
 
-        if (msg.caption) {
-          const parts = msg.caption.split(/\s+/);
-          const command = parts[0];
-          const orders = parts.slice(1);
+  if (msg.caption) {
+    const parts = msg.caption.split(/\s+/);
+    const command = parts[0];
+    const orders = parts.slice(1);
 
-          if (command === "/out" || command === "/in") {
-            const type = command === "/out" ? "payout" : "transaction";
-            if (orders.length === 0) {
-              bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
-              return;
-            }
-            orders.forEach(order => handleTransactionAndPayout(chatId, order.trim(), type));
-          }
-        }
-      });
+    if (command === "/out" || command === "/in") {
+      const type = command === "/out" ? "payout" : "transaction";
+      if (orders.length === 0) {
+        bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
+        return;
+      }
+      orders.forEach(order => handleTransactionAndPayout(chatId, order.trim(), type));
+    }
+  }
+});
 
-      // Error handling for bot
-      bot.on("polling_error", (error) => {
-        console.error("Polling error:", error.message);
-      });
+// Error handling for bot
+bot.on("polling_error", (error) => {
+  console.error("Polling error:", error.message);
+});

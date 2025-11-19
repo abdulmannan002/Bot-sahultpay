@@ -402,7 +402,16 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               return await axiosInstance.get(
                 `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
               );
-            } else {
+            } else if (providerName === "easypaisa" && (status === "pending" || status === "failed")) {
+              const hasAccountName = !!transaction.providerDetails?.sub_merchant;
+    
+              if (hasAccountName) {
+                // Use NEW API if account_name exists
+                console.log(`Using new EasyPaisa API for order ${transactionId} (has account_name)`);
+                inquiryResponse = await axiosInstance.get(
+                  `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
+                );
+              }  }  else {
               return await axiosInstance.get(
                 `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
 

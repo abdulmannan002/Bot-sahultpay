@@ -79,12 +79,11 @@ const uidMap = {
   243: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
   244: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
   245: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
-  246: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
-  247: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
-  248: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
-  249: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
+  246: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c10)
+  247: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c11)
+  248: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c12)
+  249: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (corrected from c0c13)
   45: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara (JazzCash)
-  303: "a0eb8ba1-8962-4766-8acb-945fce7dc0c3", // devinara
 
   // EVOLVICA SOLUTIONS PRIVATE LIMITED (evolivica)
   27: "3c0ba58b-5a69-4376-b40d-4d497d561ba2", // evolivica (JazzCash)
@@ -160,123 +159,109 @@ const uidMap = {
   143: "cc961e51-8c0e-44d4-9c25-56e39e992b88", // nextra
 
   // DEVTECTS PRIVATE LIMITED
-  136: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  263: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  264: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  265: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  266: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  267: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  268: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  269: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  270: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  271: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  272: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  273: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  274: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  275: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  276: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  277: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  278: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  279: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  280: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  281: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  282: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  283: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  284: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  285: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  286: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  287: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  288: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  289: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  290: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  291: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  292: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  293: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  294: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  295: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  296: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  297: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  298: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  299: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  300: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  302: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects
-  78: "7e3a599a-1841-44d1-ba8d-52fb8f249acf", // devtects Jazz cash
+  263: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  264: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  265: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  266: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  267: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  268: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  269: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  270: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  271: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  272: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  273: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  274: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  275: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  276: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  277: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  278: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  279: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  280: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  281: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  282: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  283: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  284: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  285: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  286: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  287: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  288: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  289: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  290: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  291: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  292: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  293: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  295: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  296: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  297: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  298: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  299: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
+  300: "7e3a599a-1841-44d1-ba8d-52fb8f249acf",
 
   // DIGIFYTIVE PRIVATE LIMITED
-  219: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  220: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  221: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  223: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  224: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  225: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  226: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  227: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  228: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  229: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  230: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  231: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  232: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  233: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  234: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  235: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  236: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  237: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  238: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  301: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  304: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  305: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive
-  79: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e", // digifytive Jazz cash
+  219: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  220: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  221: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  223: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  224: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  225: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  226: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  227: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  228: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  229: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  230: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  231: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  232: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  233: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  234: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  235: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  236: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  237: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
+  238: "463d5be4-0b43-400a-ba0b-d77c9ce7ff3e",
 
   // DOVANTIS SOLUTIONS PRIVATE LIMITED
-  205: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
-  206: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
-  207: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
-  208: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
-  209: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
-  210: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis
-  74: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a", // dovantis Jazz cash
+  205: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
+  206: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
+  207: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
+  208: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
+  209: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
+  210: "f9e13fe5-0f4a-4768-bce3-bc318aa08b7a",
 
   // MONIC TECH PRIVATE LIMITED
-  250: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  251: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  252: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  253: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  254: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  255: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  256: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  257: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  258: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  259: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  260: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  261: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  262: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  306: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  307: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic
-  80: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic Jazz cash
+  250: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  251: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  252: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  253: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  254: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  255: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  256: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  257: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  258: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  259: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  260: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  261: "05ac708a-2a63-49f1-a77d-dd040c850e14",
+  262: "05ac708a-2a63-49f1-a77d-dd040c850e14",
 
   // SASTA TECH SOLUTIONS & SASTA TECH SOLUTIONS PRIVATE LIMITED
   7: "6d612b47-6405-4237-9b0c-7d639eb960ee", // JazzCash
-  126: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  127: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  128: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  129: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  130: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  131: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  132: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  133: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  134: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  135: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  211: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  212: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  213: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  215: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  217: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
-  218: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
+  126: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  127: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  128: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  129: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  130: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  131: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  132: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  133: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  134: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  135: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  211: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  212: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  213: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  215: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  217: "6d612b47-6405-4237-9b0c-7d639eb960ee",
+  218: "6d612b47-6405-4237-9b0c-7d639eb960ee",
 
   // Animatrix
-  85: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15",
-  //Marketing motion
-  84: "a37a6b7c-32f3-423b-968e-9fd709b6ccc3",
+  //27: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15",
 
   // Payfast UIDs
   5: "22943823-9a2d-4ab2-8d13-9b684ba8058d",
@@ -339,27 +324,33 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     const status = transaction.status?.trim().toLowerCase();
     const merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
     const timeZone = "Asia/Karachi";
-
     // Extract the date from transaction
     let date;
-    if (type === "payout") {
-      date = transaction.disbursementDate;
-    } else {
-      date = transaction.date_time ? transaction.date_time : transaction.transactionDateTime;
-    }
 
-    // Convert to Pakistan timezone and format
+      if (type === "payout") {
+        date = transaction.disbursementDate;
+      } else {
+        date = transaction.date_time 
+                  ? transaction.date_time 
+                  : transaction.transactionDateTime;
+      }
+    // Convert to Pakistan timezone
     const zonedDate = toZonedTime(new Date(date), timeZone);
+    // Format as compact string, e.g. "20251007221004"
     const formattedDate = format(zonedDate, "yyyy-MM-dd HH:mm:ss", { timeZone });
-    const date_time = formattedDate;
+    const date_time = formattedDate
 
-    // Determine txn id
+    
     let txn_id;
-    if (type === "payout") {
-      txn_id = transaction.transaction_id;
-    } else {
-      txn_id = transaction.providerDetails?.transactionId ? transaction.providerDetails.transactionId : transaction.transaction_id;
-    }
+
+      if (type === "payout") {
+        txn_id = transaction.transaction_id;
+      } else {
+        txn_id = transaction.providerDetails.transactionId 
+                  ? transaction.providerDetails.transactionId 
+                  : transaction.transaction_id;
+      }
+
 
     if (!merchantTransactionId) {
       console.error("Error: merchantTransactionId is undefined.");
@@ -367,7 +358,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
       return;
     }
 
-    // Handle already completed transactions
+    // Handle completed transactions
     if (status === "completed") {
       console.log(`Transaction ${merchantTransactionId} is already completed. TxnID: ${txn_id}. Date: ${date_time}`);
       const callbackUrl = type === "payout" ? PAYOUT_CALLBACK_API_URL : CALLBACK_API_URL;
@@ -378,132 +369,94 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
       } catch (error) {
         console.error("Error calling callback API:", error.response?.data || error.message);
-        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed, TxnID: ${txn_id}.\nDate: ${date_time}`);
+        await bot.sendMessage(chatId, `Transaction ${merchantTransactionId} is completed,  TxnID: ${txn_id}.\nDate: ${date_time} `);
       }
       return;
     }
 
-    // Transaction inquiry flow
+    // Perform status inquiry for transactions (not payouts)
     if (type === "transaction" && uidMap) {
       const providerName = transaction.providerDetails?.name?.toLowerCase();
-      let inquiryResponse;
+      let inquiryUrl, inquiryResponse, inquiryUid;
+
       try {
-        // Special handling for Easypaisa
-        if (providerName === "easypaisa" && (status === "pending" || status === "failed")) {
-          const hasAccountName = !!transaction.providerDetails?.sub_merchant;
-
-          if (hasAccountName) {
-            // Use NEW API if account_name exists
-            console.log(`Using new EasyPaisa API for order ${order} (has account_name)`);
-            inquiryResponse = await axiosInstance.get(
-              `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
-            );
-          } else {
-            // Fallback: use UID-based inquiry
-            const merchantId = transaction.providerDetails?.id;
-            const mappedId = uidMap[merchantId];
-
-            const performInquiry = async (uid) => {
-              if ([5, 6, 8].includes(parseInt(merchantId))) {
-                return await axiosInstance.get(
-                  `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${order}`
-                );
-              } else {
-                return await axiosInstance.get(
-                  `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`
-                );
-              }
-            };
-
-            if (mappedId) {
-              console.log(`Performing ${providerName} inquiry with mapped UUID: ${mappedId}`);
-              inquiryResponse = await performInquiry(mappedId);
-
-              if (
-                inquiryResponse.data?.success === true &&
-                inquiryResponse.data?.message === "Transaction Not Found" &&
-                inquiryResponse.data?.data?.statusCode === 500
-              ) {
-                const fallbackUid =
-                  transaction.merchant?.uid ||
-                  transaction.merchant?.groups?.[0]?.uid ||
-                  transaction.merchant?.groups?.[0]?.merchant?.uid;
-                if (fallbackUid) {
-                  console.log(`Fallback to transaction UID: ${fallbackUid}`);
-                  inquiryResponse = await performInquiry(fallbackUid);
-                } else {
-                  console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
-                  await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
-                  return;
-                }
-              }
-            } else {
-              const uid =
-                transaction.merchant?.uid ||
-                transaction.merchant?.groups?.[0]?.uid ||
-                transaction.merchant?.groups?.[0]?.merchant?.uid;
-              if (uid) {
-                console.log(`Performing ${providerName} inquiry with transaction UID: ${uid}`);
-                inquiryResponse = await performInquiry(uid);
-              } else {
-                console.error(`No UID found for transaction ${merchantTransactionId}`);
-                await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
-                return;
-              }
-            }
-          }
-        } else {
-          // Generic inquiry for non-easypaisa providers
-          const merchantId = transaction.providerDetails?.id;
-          const mappedId = uidMap[merchantId];
-
-          const performInquiry = async (uid) => {
+        // Function to perform inquiry with a given UID
+        const performInquiry = async (uid, merchantId, transactionId) => {
+          if (providerName === "easypaisa") {
             if ([5, 6, 8].includes(parseInt(merchantId))) {
               return await axiosInstance.get(
-                `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${order}`
+                `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
               );
-            } else {
+            } else if (providerName === "easypaisa" && (status === "pending" || status === "failed")) {
+              const hasAccountName = !!transaction.providerDetails?.sub_merchant;
+    
+              if (hasAccountName) {
+                // Use NEW API if account_name exists
+                console.log(`Using new EasyPaisa API for order ${order} (has account_name)`);
+                inquiryResponse = await axiosInstance.get(
+                  `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
+                );
+              }  } else {
               return await axiosInstance.get(
-                `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${order}`
+                `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
+
               );
             }
-          };
+          } else if (providerName === "jazzcash") {
+            return await axiosInstance.get(
+              `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
+            );
+          }
+          throw new Error("Unsupported provider");
+        };
 
-          if (mappedId) {
-            inquiryResponse = await performInquiry(mappedId);
-            if (
-              inquiryResponse.data?.success === true &&
-              inquiryResponse.data?.message === "Transaction Not Found" &&
-              inquiryResponse.data?.data?.statusCode === 500
-            ) {
-              const fallbackUid =
-                transaction.merchant?.uid ||
-                transaction.merchant?.groups?.[0]?.uid ||
-                transaction.merchant?.groups?.[0]?.merchant?.uid;
-              if (fallbackUid) {
-                inquiryResponse = await performInquiry(fallbackUid);
-              } else {
-                await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
-                return;
-              }
-            }
-          } else {
-            const uid =
+        // Get merchant ID and mapped UUID
+        const merchantId = transaction.providerDetails?.id;
+        let mappedId = uidMap[merchantId];
+
+        // First attempt with mapped UUID
+        if (mappedId) {
+          console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
+          inquiryUid = mappedId;
+          inquiryResponse = await performInquiry(mappedId, merchantId, order);
+
+          // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
+          if (
+            inquiryResponse.data?.success === true &&
+            inquiryResponse.data?.message === "Transaction Not Found" &&
+            inquiryResponse.data?.data?.statusCode === 500
+          ) {
+            console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
+            // Fallback to transaction UID
+            const fallbackUid =
               transaction.merchant?.uid ||
               transaction.merchant?.groups?.[0]?.uid ||
               transaction.merchant?.groups?.[0]?.merchant?.uid;
-            if (uid) {
-              inquiryResponse = await performInquiry(uid);
+            if (fallbackUid) {
+              console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
+              inquiryUid = fallbackUid;
+              inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
             } else {
-              await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
+              console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
+              await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
               return;
             }
           }
-        } // end of provider-specific inquiry handling
-
-        // If we don't have any inquiryResponse here, something went wrong
-        if (!inquiryResponse) {
-          throw new Error("No inquiry response received");
+        } else {
+          // No mapped ID, try transaction UID directly
+          const uid =
+            transaction.merchant?.uid ||
+            transaction.merchant?.groups?.[0]?.uid ||
+            transaction.merchant?.groups?.[0]?.merchant?.uid;
+          if (uid) {
+            console.log(`Performing ${providerName} inquiry with transaction UID: ${uid}`);
+            inquiryUid = uid;
+            inquiryResponse = await performInquiry(uid, merchantId, order);
+          } else {
+            console.error(`No UID found for transaction ${merchantTransactionId}`);
+            await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
+            return;
+          }
         }
 
         console.log("Inquiry API Response:", inquiryResponse.data);

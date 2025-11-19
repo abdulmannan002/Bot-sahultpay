@@ -433,16 +433,9 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               transaction.merchant?.groups?.[0]?.uid ||
               transaction.merchant?.groups?.[0]?.merchant?.uid;
             if (fallbackUid) {
-              if (providerName === "easypaisa") {
-                console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid} fallback`);
-                inquiryResponse = await axiosInstance.get(
-                  `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${order}`
-                );
-              } else {
               console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
               inquiryUid = fallbackUid;
               inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
-              }
             } else {
               console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
               await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);

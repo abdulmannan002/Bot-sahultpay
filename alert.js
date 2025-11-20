@@ -21,10 +21,12 @@ const config = {
             70: '?merchantId=70',
             603: '?merchantId=603',
             805: '?merchantId=805',
+            47: '?merchantId=47',
+            621:'?merchantId=621',
             49: '?merchantId=49'
         }
     },
-    monitorInterval: 600000, // 10 minutes
+    monitorInterval: 300000, // 5 minutes
     retryInterval: 60000, // 1 minute for server down retries
     acknowledgment: {
         retries: 3,
@@ -359,9 +361,11 @@ async function startMonitoring() {
               "655": "PAY GAMES",
               "451": "First Pay",
               "49": "UNITY FINANCE",
+              "47": "DZEN PAY",
               "70": "ABC 2",
               "603": "ABC 3",
               "805": "ABC 4",
+              "621": "SETTLE PAY",
             };
             
             const name = merchantNameMap[id] || `Merchant ${id}`;
@@ -376,7 +380,7 @@ async function startMonitoring() {
         const shouldAlert = Object.values(statsMap).some(s => s.successRate < 100 || (s.successRate === 0 && s.total === 0));
         if (shouldAlert) await sendAlert(statsMap, !serverStable);
 
-        logger.info("Monitoring cycle completed. Waiting 10 minutes...");
+        logger.info("Monitoring cycle completed. Waiting 5 minutes...");
         await new Promise(r => setTimeout(r, config.monitorInterval));
     }
 }

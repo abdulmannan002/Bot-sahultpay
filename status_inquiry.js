@@ -257,7 +257,7 @@ const uidMap = {
   80: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic Jazz cash
 
   // SASTA TECH SOLUTIONS & SASTA TECH SOLUTIONS PRIVATE LIMITED
-  7: "6d612b47-6405-4237-9b0c-7d639eb960ee", // JazzCash
+  7: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15", // JazzCash
   126: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
   127: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
   128: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta

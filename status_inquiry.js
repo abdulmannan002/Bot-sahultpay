@@ -513,8 +513,8 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
         // === Final status processing (after mapped or fallback) ===
         console.log("Inquiry API Response:", inquiryResponse.data);
-        const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
-        const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
+        const inquiryStatus = inquiryResponse?.data?.transactionStatus?.toLowerCase();
+        const inquiryStatusCode = inquiryResponse?.data?.statusCode;
 
         if (inquiryStatus === "completed" || inquiryStatus == 'paid') {
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });

@@ -392,7 +392,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     // Perform status inquiry for transactions (not payouts)
     if (type === "transaction" && uidMap) {
       const providerName = transaction.providerDetails?.name?.toLowerCase();
-      let inquiryUrl, inquiryResponse, inquiryUid;
+      let inquiryUrl, inquiryUid;
 
       try {
         const performInquiry = async (uid, merchantId, transactionId) => {
@@ -419,9 +419,9 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         // Get merchant ID and mapped UUID
         const merchantId = transaction.providerDetails?.id;
         let mappedId = uidMap[merchantId];
-
+        let inquiryResponse = null
         // First attempt with mapped UUID
-                if (mappedId) {
+        if (mappedId) {
           console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
           inquiryUid = mappedId;
           let inquiryFailed = false;

@@ -468,7 +468,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           if (
             inquiryResponse.data.success == false &&
             (inquiryResponse.data?.message === "Transaction not found" ||
-              inquiryResponse.data?.message === "invalid inputs") &&
+              inquiryResponse.data?.message === "invalid inputs" || inquiryResponse.data?.message === "Something went wrong") &&
             inquiryResponse.data?.data.statusCode === 404
           ) {
             console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);

@@ -518,8 +518,8 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
         if (providerName === "easypaisa") {
           // EasyPaisa: data.data.transactionStatus
-          inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
-          inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
+          inquiryStatus = inquiryResponse?.data?.transactionStatus?.toLowerCase();
+          inquiryStatusCode = inquiryResponse?.data?.statusCode;
         } else if (providerName === "jazzcash") {
           // JazzCash: data.transactionStatus (not data.data)
           inquiryStatus = inquiryResponse?.data?.transactionStatus?.toLowerCase();

@@ -421,74 +421,70 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         let mappedId = uidMap[merchantId];
 
         // First attempt with mapped UUID
-        if (mappedId) {
+                if (mappedId) {
           console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
           inquiryUid = mappedId;
-          inquiryResponse = await performInquiry(mappedId, merchantId, order);
-          console.log("Success: ", inquiryResponse.data.success);
-          console.log("Message: ", inquiryResponse.data.message);
-          console.log("Code: ", inquiryResponse.data?.data.statusCode);
+          let inquiryFailed = false;
+          let inquiryResponse = null;
 
-          // --- EasyPaisa: Existing fallback on 404 / "not found" ---
-          if (
-            inquiryResponse.data.success == false &&
-            (inquiryResponse.data?.message === "Transaction not found" ||
-              inquiryResponse.data?.message === "invalid inputs" || 
-              inquiryResponse.data?.message === "Something went wrong") &&
-            inquiryResponse.data?.data.statusCode === 404
-          ) {
-            console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
+          try {
+            inquiryResponse = await performInquiry(mappedId, merchantId, order);
+            console.log("Inquiry Response:", inquiryResponse.data);
+          } catch (err) {
+            console.log(`Inquiry API call failed for mappedId ${mappedId}:`, err.message);
+            inquiryFailed = true;
           }
-          // --- JazzCash: Fallback if response is invalid/undefined ---
-          else if (
+
+          // === Only proceed if we have a response OR it failed ===
+          const responseData = inquiryResponse?.data;
+
+          const isEasyPaisaNotFound =
+            providerName === "easypaisa" &&
+            responseData?.success === false &&
+            ["Transaction not found", "invalid inputs", "Something went wrong"].includes(responseData?.message) &&
+            responseData?.data?.statusCode === 404;
+
+          const isJazzCashInvalid =
             providerName === "jazzcash" &&
             (
-              !inquiryResponse.data?.data?.transactionStatus ||
-              inquiryResponse.data?.data?.statusCode >= 500 ||
-              inquiryResponse.data.success === false ||
-              !inquiryResponse.data.data
-            )
-          ) {
-            console.log(`JazzCash inquiry failed or undefined for mappedId ${mappedId}, attempting fallback with transaction UID`);
-          }
-          // --- If fallback needed (for both EasyPaisa & JazzCash) ---
-          else {
-            console.log("Mapped UID inquiry succeeded.");
-          }
+              inquiryFailed ||
+              !responseData?.data?.transactionStatus ||
+              (responseData?.data?.statusCode && responseData.data.statusCode >= 500) ||
+              responseData?.success === false ||
+              !responseData?.data
+            );
 
-          // === Execute fallback if needed ===
-          if (
-            (providerName === "easypaisa" && 
-             inquiryResponse.data.success == false &&
-             (inquiryResponse.data?.message === "Transaction not found" ||
-              inquiryResponse.data?.message === "invalid inputs" || 
-              inquiryResponse.data?.message === "Something went wrong") &&
-             inquiryResponse.data?.data.statusCode === 404) ||
-            (providerName === "jazzcash" &&
-             (!inquiryResponse.data?.data?.transactionStatus ||
-              inquiryResponse.data?.data?.statusCode >= 500 ||
-              inquiryResponse.data.success === false ||
-              !inquiryResponse.data.data))
-          ) {
+          if (isEasyPaisaNotFound || isJazzCashInvalid) {
+            console.log(`Fallback triggered for ${providerName}. Using transaction UID.`);
+            
             const fallbackUid = 
               transaction.merchant?.uid ||
               transaction.merchant?.groups?.[0]?.uid ||
               transaction.merchant?.groups?.[0]?.merchant?.uid;
 
-            if (fallbackUid) {
-              console.log(`Falling back to transaction UID: ${fallbackUid} for ${providerName}`);
-              inquiryUid = fallbackUid;
+            if (!fallbackUid) {
+              console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
+              await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
+              return;
+            }
 
+            console.log(`Falling back to transaction UID: ${fallbackUid}`);
+            inquiryUid = fallbackUid;
+
+            try {
               if (providerName === "easypaisa") {
                 inquiryResponse = await performOldInquiry(fallbackUid, merchantId, order);
               } else {
                 inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
               }
-            } else {
-              console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
-              await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
+              console.log("Fallback Inquiry Response:", inquiryResponse.data);
+            } catch (err) {
+              console.error(`Fallback inquiry also failed:`, err.message);
+              await bot.sendMessage(chatId, `Inquiry failed for ${merchantTransactionId} (even with fallback).`);
               return;
             }
+          } else {
+            console.log("Mapped UID inquiry succeeded. No fallback needed.");
           }
         } else {
           // No mapped ID — use transaction UID directly
@@ -496,27 +492,36 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
             transaction.merchant?.uid ||
             transaction.merchant?.groups?.[0]?.uid ||
             transaction.merchant?.groups?.[0]?.merchant?.uid;
-          if (uid) {
-            console.log(`No mapped UID. Using transaction UID: ${uid}`);
-            inquiryUid = uid;
-            inquiryResponse = await performInquiry(uid, merchantId, order);
-          } else {
+
+          if (!uid) {
             console.error(`No UID found for transaction ${merchantTransactionId}`);
             await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
             return;
           }
+
+          console.log(`No mapped UID. Using transaction UID: ${uid}`);
+          inquiryUid = uid;
+          try {
+            inquiryResponse = await performInquiry(uid, merchantId, order);
+            console.log("Direct UID Inquiry Response:", inquiryResponse.data);
+          } catch (err) {
+            console.error(`Direct inquiry failed:`, err.message);
+            await bot.sendMessage(chatId, `Inquiry failed for ${merchantTransactionId}.`);
+            return;
+          }
         }
 
-        console.log("Inquiry API Response:", inquiryResponse.data);
+        // === Final status processing (after mapped or fallback) ===
+        console.log("Final Inquiry API Response:", inquiryResponse.data);
         const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
         const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
 
-        if (inquiryStatus === "completed" || inquiryStatus == 'paid') {
+        if (inquiryStatus === "completed" || inquiryStatus === "paid") {
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
           console.log(`Transaction ${merchantTransactionId} marked as Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
         } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
-          await axiosInstance.post(FAIL-API_URL, { transactionIds: [merchantTransactionId] });
+          await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
           console.log(`Transaction ${merchantTransactionId} marked as failed.`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);
         } else {

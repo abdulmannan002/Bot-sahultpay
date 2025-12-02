@@ -257,7 +257,7 @@ const uidMap = {
   80: "05ac708a-2a63-49f1-a77d-dd040c850e14", // monic Jazz cash
 
   // SASTA TECH SOLUTIONS & SASTA TECH SOLUTIONS PRIVATE LIMITED
-  7: "f2e2586e-d17b-4fe6-a905-2148f5e4bf15", // JazzCash
+  7: "6d612b47-6405-4237-9b0c-7d639eb960ee", // JazzCash
   126: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
   127: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
   128: "6d612b47-6405-4237-9b0c-7d639eb960ee", // sasta
@@ -355,8 +355,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     const zonedDate = toZonedTime(new Date(date), timeZone);
     // Format as compact string, e.g. "20251007221004"
     const formattedDate = format(zonedDate, "yyyy-MM-dd HH:mm:ss", { timeZone });
-    const date_time = formattedDate
-
+    const date_time = formattedDate;
 
     let txn_id;
 
@@ -367,7 +366,6 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         ? transaction.providerDetails.transactionId
         : transaction.transaction_id;
     }
-
 
     if (!merchantTransactionId) {
       console.error("Error: merchantTransactionId is undefined.");
@@ -394,54 +392,20 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     // Perform status inquiry for transactions (not payouts)
     if (type === "transaction" && uidMap) {
       const providerName = transaction.providerDetails?.name?.toLowerCase();
-      let inquiryUrl, inquiryResponse, inquiryUid;
+      let inquiryUrl, inquiryUid;
 
       try {
-        // Function to perform inquiry with a given UID
-        // const performInquiry = async (uid, merchantId, transactionId) => {
-        //   if (providerName === "easypaisa") {
-        //     const hasAccountName = !!transaction.providerDetails?.sub_merchant;
-        //     if (hasAccountName) {
-        //       // Use NEW API if account_name exists
-        //       console.log(`Using new EasyPaisa API for order ${transactionId} (has account_name)`);
-        //       inquiryResponse = await axiosInstance.get(
-        //         `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
-        //       );
-        //       return inquiryResponse
-        //     } else if ([5, 6, 8].includes(parseInt(merchantId))) {
-        //       return await axiosInstance.get(
-        //         `https://server.sahulatpay.com/payment/inquiry-pf/${uid}?transactionId=${transactionId}`
-        //       );
-        //     } else {
-        //       return await axiosInstance.get(
-        //         `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
-
-        //       );
-        //     }
-        //   } else if (providerName === "jazzcash") {
-        //     return await axiosInstance.get(
-        //       `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
-        //     );
-        //   }
-        //   else {
-        //     throw new Error("Unsupported provider");
-        //   }
-        // };
-
         const performInquiry = async (uid, merchantId, transactionId) => {
           if (providerName === "easypaisa") {
-            // Use NEW API if account_name exists
             console.log(`Using new EasyPaisa API for order ${transactionId} (has account_name)`);
-            inquiryResponse = await axiosInstance.get(
+            return await axiosInstance.get(
               `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
             );
-            return inquiryResponse
           } else if (providerName === "jazzcash") {
             return await axiosInstance.get(
               `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
             );
-          }
-          else {
+          } else {
             throw new Error("Unsupported provider");
           }
         };
@@ -450,64 +414,119 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           return await axiosInstance.get(
             `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
           );
-        }
+        };
+
         // Get merchant ID and mapped UUID
         const merchantId = transaction.providerDetails?.id;
         let mappedId = uidMap[merchantId];
-
+        let inquiryResponse = null
         // First attempt with mapped UUID
         if (mappedId) {
           console.log(`Performing ${providerName} inquiry with UUID: ${mappedId}`);
           inquiryUid = mappedId;
-          inquiryResponse = await performInquiry(mappedId, merchantId, order);
-          console.log("Success: ",inquiryResponse.data.success)
-          console.log("Message: ",inquiryResponse.data.message)
-          console.log("Code: ",inquiryResponse.data?.data.statusCode)
+          let inquiryFailed = false;
+          inquiryResponse = null;
 
-          // Check if inquiry response indicates "Transaction Not Found" with statusCode 500
-          if (
-            inquiryResponse.data.success == false &&
-            inquiryResponse.data.message === "Transaction not found" &&
-            inquiryResponse.data?.data.statusCode === 404
-          ) {
-            console.log(`Transaction Not Found for mappedId ${mappedId}, attempting fallback with transaction UID`);
-            // performInquiry(mappedId, merchantId, order);
-            // Fallback to transaction UID
+          try {
+            inquiryResponse = await performInquiry(mappedId, merchantId, order);
+            console.log("Inquiry Response:", inquiryResponse.data);
+          } catch (err) {
+            console.log(`Inquiry API call failed for mappedId ${mappedId}:`, err.message);
+            inquiryFailed = true;
+          }
+
+          // === Only proceed if we have a response OR it failed ===
+          const responseData = inquiryResponse?.data;
+
+          const isEasyPaisaNotFound =
+            providerName === "easypaisa" &&
+            responseData?.success === false &&
+            ["Transaction not found", "invalid inputs", "Something went wrong"].includes(responseData?.message) &&
+            responseData?.data?.statusCode === 404;
+
+          const isJazzCashInvalid =
+            providerName === "jazzcash" &&
+            (
+              inquiryFailed ||
+              (!responseData?.data?.transactionStatus && !responseData?.transactionStatus) ||
+              (responseData?.statusCode && responseData.statusCode >= 500) ||
+              responseData?.success === false ||
+              !responseData
+            );
+
+          if (isEasyPaisaNotFound || isJazzCashInvalid) {
+            console.log(`Fallback triggered for ${providerName}. Using transaction UID.`);
+
             const fallbackUid =
               transaction.merchant?.uid ||
               transaction.merchant?.groups?.[0]?.uid ||
               transaction.merchant?.groups?.[0]?.merchant?.uid;
-            if (fallbackUid) {
-              console.log(`Performing ${providerName} inquiry with transaction UID: ${fallbackUid}`);
-              inquiryUid = fallbackUid;
-              inquiryResponse = await performOldInquiry(fallbackUid, merchantId, order);
-            } else {
+
+            if (!fallbackUid) {
               console.error(`No fallback UID found for transaction ${merchantTransactionId}`);
               await bot.sendMessage(chatId, `No merchant UID found for transaction ${merchantTransactionId}.`);
               return;
             }
+
+            console.log(`Falling back to transaction UID: ${fallbackUid}`);
+            inquiryUid = fallbackUid;
+
+            try {
+              if (providerName === "easypaisa") {
+                inquiryResponse = await performOldInquiry(fallbackUid, merchantId, order);
+              } else {
+                inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
+              }
+              console.log("Fallback Inquiry Response:", inquiryResponse.data);
+            } catch (err) {
+              console.error(`Fallback inquiry also failed:`, err.message);
+              await bot.sendMessage(chatId, `Inquiry failed for ${merchantTransactionId} (even with fallback).`);
+              return;
+            }
+          } else {
+            console.log("Mapped UID inquiry succeeded. No fallback needed.");
           }
         } else {
-          inquiryResponse = await performInquiry(uid, merchantId, order);
-          // No mapped ID, try transaction UID directly
+          // No mapped ID — use transaction UID directly
           const uid =
             transaction.merchant?.uid ||
             transaction.merchant?.groups?.[0]?.uid ||
             transaction.merchant?.groups?.[0]?.merchant?.uid;
-          if (uid) {
-            console.log(`Performing ${providerName} inquiry with transaction UID: ${uid}`);
-            inquiryUid = uid;
-            inquiryResponse = await performInquiry(uid, merchantId, order);
-          } else {
+
+          if (!uid) {
             console.error(`No UID found for transaction ${merchantTransactionId}`);
             await bot.sendMessage(chatId, `No merchant mapping or UID found for transaction ${merchantTransactionId}.`);
             return;
           }
+
+          console.log(`No mapped UID. Using transaction UID: ${uid}`);
+          inquiryUid = uid;
+          try {
+            inquiryResponse = await performInquiry(uid, merchantId, order);
+            console.log("Direct UID Inquiry Response:", inquiryResponse.data);
+          } catch (err) {
+            console.error(`Direct inquiry failed:`, err.message);
+            await bot.sendMessage(chatId, `Inquiry failed for ${merchantTransactionId}.`);
+            return;
+          }
         }
 
-        console.log("Inquiry API Response:", inquiryResponse.data);
-        const inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
-        const inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
+        // === Final status processing (after mapped or fallback) ===
+        console.log("Final Inquiry API Response:", inquiryResponse?.data);
+
+        let inquiryStatus, inquiryStatusCode;
+
+        if (providerName === "easypaisa") {
+          // EasyPaisa: data.data.transactionStatus
+          inquiryStatus = (inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus)?.toLowerCase();
+          inquiryStatusCode = inquiryResponse?.data?.statusCode;
+        } else if (providerName === "jazzcash") {
+          // JazzCash: data.transactionStatus (not data.data)
+          inquiryStatus = (inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus)?.toLowerCase();
+          inquiryStatusCode = inquiryResponse?.data?.statusCode;
+        }
+
+        console.log("Parsed Status:", inquiryStatus, "| Code:", inquiryStatusCode);
 
         if (inquiryStatus === "completed" || inquiryStatus == 'paid') {
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
@@ -542,6 +561,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
     await bot.sendMessage(chatId, `Error processing ${type} ${order}`);
   }
 };
+
 bot.onText(/\/pout/, (msg) => {
   const chatId = msg.chat.id;
   const removepend = `https://api.sahulatpay.com/backoffice/upd-disb`;
@@ -550,7 +570,7 @@ bot.onText(/\/pout/, (msg) => {
     .then((response) => {
       if (response.data && response.data.statusCode === 200) {
         console.log("Pending payouts removed:", response.data);
-        bot.sendMessage(chatId, `PAYOUT PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
+        bot.sendMessage(chatId, `PAYOUT PENDING: ${response.data.data} removed successfully.`);
       } else {
         bot.sendMessage(chatId, `Failed to remove pending payouts.`);
       }
@@ -560,6 +580,7 @@ bot.onText(/\/pout/, (msg) => {
       bot.sendMessage(chatId, `Error removing pending payouts: ${error.message}`);
     });
 });
+
 bot.onText(/\/pin/, (msg) => {
   const chatId = msg.chat.id;
   const removepend = `https://api.sahulatpay.com/backoffice/upd-txn`;
@@ -568,7 +589,7 @@ bot.onText(/\/pin/, (msg) => {
     .then((response) => {
       if (response.data && response.data.statusCode === 200) {
         console.log("Pending payin removed:", response.data);
-        bot.sendMessage(chatId, `PAYIN PENDING:🚀 ${response.data.data} 🚀 removed successfully.`);
+        bot.sendMessage(chatId, `PAYIN PENDING: ${response.data.data} removed successfully.`);
       } else {
         bot.sendMessage(chatId, `Failed to remove pending payin.`);
       }
@@ -578,6 +599,7 @@ bot.onText(/\/pin/, (msg) => {
       bot.sendMessage(chatId, `Error removing pending payin: ${error.message}`);
     });
 });
+
 // Handle /pending command for pending payouts
 bot.onText(/\/pending (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
@@ -619,7 +641,6 @@ const pendingStatus = async (chatId, merchantUid) => {
       return 0;
     }
 
-    // ✅ Correct path
     const items = response.data?.data?.transactions || [];
     const pendingItems = items.filter(item => item.status === "pending");
 

@@ -512,16 +512,28 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
         }
 
         // === Final status processing (after mapped or fallback) ===
-        console.log("Inquiry API Response:", inquiryResponse.data);
-        const inquiryStatus = inquiryResponse?.data?.transactionStatus?.toLowerCase();
-        const inquiryStatusCode = inquiryResponse?.data?.statusCode;
+                console.log("Final Inquiry API Response:", inquiryResponse.data);
+
+        let inquiryStatus, inquiryStatusCode;
+
+        if (providerName === "easypaisa") {
+          // EasyPaisa: data.data.transactionStatus
+          inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
+          inquiryStatusCode = inquiryResponse?.data?.data?.statusCode;
+        } else if (providerName === "jazzcash") {
+          // JazzCash: data.transactionStatus (not data.data)
+          inquiryStatus = inquiryResponse?.data?.transactionStatus?.toLowerCase();
+          inquiryStatusCode = inquiryResponse?.data?.statusCode;
+        }
+
+        console.log("Parsed Status:", inquiryStatus, "| Code:", inquiryStatusCode);
 
         if (inquiryStatus === "completed" || inquiryStatus == 'paid') {
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
           console.log(`Transaction ${merchantTransactionId} marked as Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
         } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
-          await axiosInstance.post(FAIL-API_URL, { transactionIds: [merchantTransactionId] });
+          await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
           console.log(`Transaction ${merchantTransactionId} marked as failed.`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);
         } else {

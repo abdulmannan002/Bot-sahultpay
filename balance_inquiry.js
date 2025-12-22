@@ -139,7 +139,7 @@ function getStateKey(msg) {
 }
 
 // Initialize bot
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7239638999:AAH2hu1KFc1xdnU6yISqcpFjhNEhcm66LWs';
+const TELEGRAM_BOT_TOKEN = '8322660265:AAFST0L7M6FrUyQlqu1Qh_CmWIJP1YpZeyc';
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: { interval: 1000 } });
 console.log(`Bot initialized with token: ${TELEGRAM_BOT_TOKEN}`);
 

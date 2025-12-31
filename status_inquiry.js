@@ -703,8 +703,3 @@ bot.on("photo", (msg) => {
 bot.on("polling_error", (error) => {
   console.error("Polling error:", error.message);
 });
-
-// Ignore any other commands
-bot.onText(/^\/(?!in\b|out\b|pin\b|pout\b).+/, (msg) => {
-  console.log(`Ignoring unsupported command: ${msg.text}`);
-});

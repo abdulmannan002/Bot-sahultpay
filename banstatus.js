@@ -739,7 +739,12 @@ bot.on("polling_error", (error) => {
   console.error("Polling error:", error.message);
 });
 
-// Ignore any other commands
-bot.onText(/^\/(?!in\b|out\b|pin\b|pout\b).+/, (msg) => {
-  console.log(`Ignoring unsupported command: ${msg.text}`);
+// Ignore any other commands (log only)
+bot.on("message", (msg) => {
+  const text = msg.text || "";
+  if (!text.startsWith("/")) return;
+  const allowed = [/^\/in\b/i, /^\/out\b/i, /^\/pin\b/i, /^\/pout\b/i];
+  if (!allowed.some((re) => re.test(text))) {
+    console.log(`Ignoring unsupported command: ${text}`);
+  }
 });

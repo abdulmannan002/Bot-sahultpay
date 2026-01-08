@@ -12,6 +12,7 @@
     "start:alert": "node alert.js",
     "start:payout": "node payout_pending.js",
     "start:status": "node status_inquiry.js",
+    "start:whitelist_status": "node whitelist_status_inquiry_pkr.js",
     "start:first": "node firstpayalert.js",
     "start:ban": "node banstatus.js",
     "start:dis": "node alert-disbursement.js",

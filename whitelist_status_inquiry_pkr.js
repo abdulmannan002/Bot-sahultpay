@@ -563,7 +563,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
   }
 };
 
-bot.onText(/\/pendingout/, (msg) => {
+bot.onText(/\/wpendingout/, (msg) => {
   const chatId = msg.chat.id;
   const removepend = `https://sp-server.assanpay.com/backoffice/upd-disb`;
   axios
@@ -582,7 +582,7 @@ bot.onText(/\/pendingout/, (msg) => {
     });
 });
 
-bot.onText(/\/pendingin/, (msg) => {
+bot.onText(/\/wpendingin/, (msg) => {
   const chatId = msg.chat.id;
   const removepend = `https://sp-server.assanpay.com/backoffice/upd-txn`;
   axios
@@ -602,7 +602,7 @@ bot.onText(/\/pendingin/, (msg) => {
 });
 
 // Handle /pending command for pending payouts
-bot.onText(/\/pending (.+)/, async (msg, match) => {
+bot.onText(/\/wpending (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const merchantUids = match[1].trim().split(/\s+/);
 

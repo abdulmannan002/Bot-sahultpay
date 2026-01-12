@@ -563,9 +563,9 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
   }
 };
 
-bot.onText(/\/pout/, (msg) => {
+bot.onText(/\/pendingout/, (msg) => {
   const chatId = msg.chat.id;
-  const removepend = `https://api.sahulatpay.com/backoffice/upd-disb`;
+  const removepend = `https://sp-server.assanpay.com/backoffice/upd-disb`;
   axios
     .post(removepend)
     .then((response) => {
@@ -582,9 +582,9 @@ bot.onText(/\/pout/, (msg) => {
     });
 });
 
-bot.onText(/\/pin/, (msg) => {
+bot.onText(/\/pendingin/, (msg) => {
   const chatId = msg.chat.id;
-  const removepend = `https://api.sahulatpay.com/backoffice/upd-txn`;
+  const removepend = `https://sp-server.assanpay.com/backoffice/upd-txn`;
   axios
     .post(removepend)
     .then((response) => {
@@ -655,7 +655,7 @@ const pendingStatus = async (chatId, merchantUid) => {
 };
 
 // Handle /in command for transactions
-bot.onText(/\/in (.+)/, (msg, match) => {
+bot.onText(/\/win (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
   const orders = match[1].trim().split(/\s+/);
 
@@ -668,7 +668,7 @@ bot.onText(/\/in (.+)/, (msg, match) => {
 });
 
 // Handle /out command for payouts
-bot.onText(/\/out (.+)/, (msg, match) => {
+bot.onText(/\/wout (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
   const orders = match[1].trim().split(/\s+/);
 
@@ -689,8 +689,8 @@ bot.on("photo", (msg) => {
     const command = parts[0];
     const orders = parts.slice(1);
 
-    if (command === "/out" || command === "/in") {
-      const type = command === "/out" ? "payout" : "transaction";
+    if (command === "/wout" || command === "/win") {
+      const type = command === "/wout" ? "payout" : "transaction";
       if (orders.length === 0) {
         bot.sendMessage(chatId, "Please provide at least one order ID in the caption.");
         return;

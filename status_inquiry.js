@@ -562,7 +562,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
   }
 };
 
-bot.onText(/\/pout/, (msg) => {
+bot.onText(/\/pendingout/, (msg) => {
   const chatId = msg.chat.id;
   const removepend = `https://api.sahulatpay.com/backoffice/upd-disb`;
   axios
@@ -581,7 +581,7 @@ bot.onText(/\/pout/, (msg) => {
     });
 });
 
-bot.onText(/\/pin/, (msg) => {
+bot.onText(/\/pendingin/, (msg) => {
   const chatId = msg.chat.id;
   const removepend = `https://api.sahulatpay.com/backoffice/upd-txn`;
   axios

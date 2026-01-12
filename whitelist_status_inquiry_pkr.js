@@ -10,8 +10,8 @@ dotenv.config();
 const app = express();
 // const PORT = process.env.STATUS_PORT || 4007;
 
-app.listen(3000, () => {
-  console.log(`Server running on port ${3000}`);
+app.listen(9000, () => {
+  console.log(`Server running on port ${9000}`);
 });
 
 app.get("/", (req, res) => {
@@ -23,8 +23,8 @@ const BOT_TOKEN = "8354780248:AAGpZy1P5omuVw7_7WycrKXRDI7l8k5hLEk";
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 // API URLs
-const API_BASE_URL = process.env.API_BASE_URL || "https://sp-server.assanpay.com";
-const API_BACKOFFICE_URL = process.env.API_BACKOFFICE_URL || "https://sp-server.assanpay.com";
+const API_BASE_URL = "https://sp-server.assanpay.com";
+const API_BACKOFFICE_URL = "https://sp-server.assanpay.com";
 const CALLBACK_API_URL = `${API_BASE_URL}/backoffice/payin-callback`;
 const SETTLE_API_URL = `${API_BASE_URL}/backoffice/settle-transactions/tele`;
 const PAYOUT_API_URL = `${API_BASE_URL}/disbursement/tele`;

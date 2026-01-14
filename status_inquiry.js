@@ -19,7 +19,7 @@ app.get("/", (req, res) => {
 });
 
 // Bot configuration
-const BOT_TOKEN = "7974668426:AAGVRkkxj0JD9RKrpmb2PUCxJdBWGS3fA-k";
+const BOT_TOKEN = "8357769902:AAHbgyg_rjTgjqsFnD-rrmC4k-cZVhZ6AWw";
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 // API URLs

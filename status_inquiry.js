@@ -402,19 +402,44 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
               `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`
             );
           } else if (providerName === "jazzcash") {
+            console.log(`Using new JazzCash API for order ${transactionId}`);
             return await axiosInstance.get(
-              `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
+              `https://easypaisa-setup-server.assanpay.com/api/jazzcash/transactions/status-inquiry?orderId=${transactionId}`
             );
           } else {
             throw new Error("Unsupported provider");
           }
         };
 
-        const performOldInquiry = async (uid, merchantId, transactionId) => {
-          return await axiosInstance.get(
-            `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
-          );
+        const performLegacyInquiry = async (uid, merchantId, transactionId) => {
+          if (providerName === "easypaisa") {
+            return await axiosInstance.get(
+              `${API_BACKOFFICE_URL}/payment/inquiry-ep/${uid}?orderId=${transactionId}`
+            );
+          }
+          if (providerName === "jazzcash") {
+            return await axiosInstance.get(
+              `${API_BASE_URL}/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`
+            );
+          }
+          throw new Error("Unsupported provider");
         };
+
+        const isEasyPaisaNotFoundResponse = (responseData) =>
+          providerName === "easypaisa" &&
+          responseData?.success === false &&
+          ["Transaction not found", "invalid inputs", "Something went wrong"].includes(responseData?.message) &&
+          responseData?.data?.statusCode === 404;
+
+        const isJazzCashInvalidResponse = (responseData, inquiryFailed) =>
+          providerName === "jazzcash" &&
+          (
+            inquiryFailed ||
+            (!responseData?.data?.transactionStatus && !responseData?.transactionStatus) ||
+            (responseData?.statusCode && responseData.statusCode >= 500) ||
+            responseData?.success === false ||
+            !responseData
+          );
 
         // Get merchant ID and mapped UUID
         const merchantId = transaction.providerDetails?.id;
@@ -438,21 +463,8 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           // === Only proceed if we have a response OR it failed ===
           const responseData = inquiryResponse?.data;
 
-          const isEasyPaisaNotFound =
-            providerName === "easypaisa" &&
-            responseData?.success === false &&
-            ["Transaction not found", "invalid inputs", "Something went wrong"].includes(responseData?.message) &&
-            responseData?.data?.statusCode === 404;
-
-          const isJazzCashInvalid =
-            providerName === "jazzcash" &&
-            (
-              inquiryFailed ||
-              (!responseData?.data?.transactionStatus && !responseData?.transactionStatus) ||
-              (responseData?.statusCode && responseData.statusCode >= 500) ||
-              responseData?.success === false ||
-              !responseData
-            );
+          const isEasyPaisaNotFound = isEasyPaisaNotFoundResponse(responseData);
+          const isJazzCashInvalid = isJazzCashInvalidResponse(responseData, inquiryFailed);
 
           if (isEasyPaisaNotFound || isJazzCashInvalid) {
             console.log(`Fallback triggered for ${providerName}. Using transaction UID.`);
@@ -472,11 +484,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
             inquiryUid = fallbackUid;
 
             try {
-              if (providerName === "easypaisa") {
-                inquiryResponse = await performOldInquiry(fallbackUid, merchantId, order);
-              } else {
-                inquiryResponse = await performInquiry(fallbackUid, merchantId, order);
-              }
+              inquiryResponse = await performLegacyInquiry(fallbackUid, merchantId, order);
               console.log("Fallback Inquiry Response:", inquiryResponse.data);
             } catch (err) {
               console.error(`Fallback inquiry also failed:`, err.message);
@@ -504,6 +512,13 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           try {
             inquiryResponse = await performInquiry(uid, merchantId, order);
             console.log("Direct UID Inquiry Response:", inquiryResponse.data);
+
+            const responseData = inquiryResponse?.data;
+            if (isEasyPaisaNotFoundResponse(responseData) || isJazzCashInvalidResponse(responseData, false)) {
+              console.log(`Direct inquiry fallback triggered for ${providerName}. Using legacy inquiry.`);
+              inquiryResponse = await performLegacyInquiry(uid, merchantId, order);
+              console.log("Direct UID Legacy Inquiry Response:", inquiryResponse.data);
+            }
           } catch (err) {
             console.error(`Direct inquiry failed:`, err.message);
             await bot.sendMessage(chatId, `Inquiry failed for ${merchantTransactionId}.`);

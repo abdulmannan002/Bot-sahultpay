@@ -406,6 +406,11 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
             return await axiosInstance.get(
               `https://easypaisa-setup-server.assanpay.com/api/jazzcash/transactions/status-inquiry?orderId=${transactionId}`
             );
+          } else if (providerName === "qr") {
+            console.log(`Using BankIslami QR API for order ${transactionId}`);
+            return await axiosInstance.get(
+              `https://easypaisa-setup-server.assanpay.com/api/bankislami/transactions/status-inquiry-external?orderId=${transactionId}`
+            );
           } else {
             throw new Error("Unsupported provider");
           }
@@ -435,7 +440,7 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           providerName === "jazzcash" &&
           (
             inquiryFailed ||
-            (!responseData?.data?.transactionStatus && !responseData?.transactionStatus) ||
+            (!responseData?.data?.transactionStatus && !responseData?.transactionStatus && !responseData?.data?.paymentStatus && !responseData?.paymentStatus) ||
             (responseData?.statusCode && responseData.statusCode >= 500) ||
             responseData?.success === false ||
             !responseData
@@ -533,11 +538,15 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
 
         if (providerName === "easypaisa") {
           // EasyPaisa: data.data.transactionStatus
-          inquiryStatus = (inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus)?.toLowerCase();
+          inquiryStatus = (inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus || inquiryResponse?.data?.data?.paymentStatus || inquiryResponse?.data?.paymentStatus)?.toLowerCase();
           inquiryStatusCode = inquiryResponse?.data?.statusCode;
         } else if (providerName === "jazzcash") {
           // JazzCash: data.transactionStatus (not data.data)
-          inquiryStatus = (inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus)?.toLowerCase();
+          inquiryStatus = (inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus || inquiryResponse?.data?.data?.paymentStatus || inquiryResponse?.data?.paymentStatus)?.toLowerCase();
+          inquiryStatusCode = inquiryResponse?.data?.statusCode;
+        } else if (providerName === "qr") {
+          // QR/BankIslami: data.paymentStatus
+          inquiryStatus = (inquiryResponse?.data?.data?.paymentStatus || inquiryResponse?.data?.paymentStatus || inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus || inquiryResponse?.data?.data?.responseMessage)?.toLowerCase();
           inquiryStatusCode = inquiryResponse?.data?.statusCode;
         }
 
@@ -547,7 +556,10 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
           console.log(`Transaction ${merchantTransactionId} marked as Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
-        } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatus === "pending" || inquiryStatusCode === 500) {
+        } else if (inquiryStatus === "pending") {
+          console.log(`Transaction ${merchantTransactionId} is pending.`);
+          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Pending.`);
+        } else if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatusCode === 500) {
           await axiosInstance.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] });
           console.log(`Transaction ${merchantTransactionId} marked as failed.`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Failed.`);

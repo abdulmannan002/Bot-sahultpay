@@ -23,14 +23,15 @@ const config = {
             805: '?merchantId=805',
             47: '?merchantId=47',
             621:'?merchantId=621',
-            49: '?merchantId=49'
+            49: '?merchantId=49',
+            1050: '?merchantId=1050',
         }
     },
     monitorInterval: 300000, // 5 minutes
     retryInterval: 60000, // 1 minute for server down retries
     acknowledgment: {
-        retries: 3,
-        timeout: 120000 // 2 minutes
+        retries: 1,
+        timeout: 60000 // 1 minute
     },
     telegramRetry: {
         maxRetries: 5,
@@ -366,6 +367,7 @@ async function startMonitoring() {
               "603": "ABC 3",
               "805": "ABC 4",
               "621": "SETTLE PAY",
+              "1050": "PAYPRO",
             };
             
             const name = merchantNameMap[id] || `Merchant ${id}`;

@@ -25,6 +25,7 @@ const config = {
             621:'?merchantId=621',
             49: '?merchantId=49',
             1050: '?merchantId=1050',
+            2049: '?merchantId=2049',
         }
     },
     monitorInterval: 300000, // 5 minutes
@@ -368,6 +369,7 @@ async function startMonitoring() {
               "805": "ABC 4",
               "621": "SETTLE PAY",
               "1050": "PAYPRO",
+              "2049": "OK PAY",
             };
             
             const name = merchantNameMap[id] || `Merchant ${id}`;

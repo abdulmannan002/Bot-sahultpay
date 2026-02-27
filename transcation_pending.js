@@ -256,7 +256,17 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Function to log messages
 const logMessage = (message) => {
-  //console.log(`[LOG]: ${message}`);
+  console.log(`[LOG] ${new Date().toISOString()} ${message}`);
+};
+
+const logPayload = (label, payload) => {
+  const ts = new Date().toISOString();
+  console.log(`[LOG] ${ts} ${label}`);
+  try {
+    console.log(JSON.stringify(payload, null, 2));
+  } catch (error) {
+    console.log(String(payload));
+  }
 };
 
 // Fetch transactions
@@ -300,7 +310,6 @@ const handleTransaction = async (order) => {
 
     //console.log(`[${commandId}] Transaction Details:`, JSON.stringify(transaction, null, 2));
     let providerName = transaction.providerDetails?.name?.toLowerCase();
-    let inquiryUrl, inquiryResponse;
     let status = transaction.status.trim().toLowerCase();
     let merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
     let txn_id = transaction.transaction_id;
@@ -317,96 +326,206 @@ const handleTransaction = async (order) => {
       return;
     }
 
-    // Status inquiry for transactions
-   if (providerName === "easypaisa") {
-           let easyPaisaMerchantId = transaction.providerDetails?.id;
-           logMessage(`Retrieved easyPaisaMerchantId: ${easyPaisaMerchantId}`);
-   
-           let mappedId = uidMap[easyPaisaMerchantId];
-           logMessage(`Mapped ID for easyPaisaMerchantId ${easyPaisaMerchantId}: ${mappedId}`);
-   
-           if (mappedId) {
-             logMessage(`Performing Easypaisa inquiry with UUID: ${mappedId}`);
-             inquiryUid = mappedId;
-             inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-ep/${mappedId}?orderId=${order}`;
-             inquiryResponse = await axios.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
-           } else {
-             let uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
-             if (uid) {
-               logMessage(`Performing Easypaisa inquiry with fallback UID: ${uid}`);
-               inquiryUid = uid;
-               inquiryUrl = `https://server.sahulatpay.com/payment/inquiry-ep/${uid}?orderId=${order}`;
-               inquiryResponse = await axios.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
-             } else {
-                logMessage(`No UID found for transaction ${merchantTransactionId}`);
-              return {
-              order,
-              status: "error",
-              message: `No merchant mapping found for transaction ${merchantTransactionId}.`,
-              apiStatus: status,
-              inquiryUid: "N/A"
-            };
-          }
-        }
-      } else if (providerName === "jazzcash") {
-        let jazzCashMerchantId = transaction.providerDetails?.id;
-        let mappedId = uidMap[jazzCashMerchantId];
+    // If provider name is missing, fail only when transaction is at least 14 minutes old.
+    if (!providerName) {
+      const fourteenMinutesMs = 10 * 60 * 1000;
+      const transactionDateRaw =
+        transaction.date_time ||
+        transaction.transactionDateTime ||
+        transaction.createdAt ||
+        transaction.updatedAt;
+      const transactionTimestamp = Date.parse(transactionDateRaw);
+      const hasValidTimestamp = Number.isFinite(transactionTimestamp);
+      const ageMs = hasValidTimestamp ? Date.now() - transactionTimestamp : 0;
 
-        logMessage(`Retrieved jazzCashMerchantId: ${jazzCashMerchantId}`);
-        logMessage(`Mapped ID for jazzCashMerchantId ${jazzCashMerchantId}: ${mappedId}`);
-
-        if (mappedId) {
-          logMessage(`Performing JazzCash inquiry with UUID: ${mappedId}`);
-          inquiryUid = mappedId;
-          inquiryUrl = `https://server.sahulatpay.com/payment/simple-status-inquiry/${mappedId}?transactionId=${order}`;
-          inquiryResponse = await axios.get(inquiryUrl, { params: { transaction_id: merchantTransactionId } });
-        } else {
-          let uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
-          if (uid) {
-            logMessage(`Performing JazzCash inquiry with fallback UID: ${uid}`);
-            inquiryUid = uid;
-            inquiryUrl = `https://server.sahulatpay.com/payment/status-inquiry/${uid}`;
-            inquiryResponse = await axios.post(inquiryUrl, { transactionId: merchantTransactionId });
-          } else {
-            logMessager(`No UID found for transaction ${merchantTransactionId}`);
-            return {
-              order,
-              status: "error",
-              message: `No merchant mapping found for transaction ${merchantTransactionId}.`,
-              apiStatus: status,
-              inquiryUid: "N/A"
-            };
-          }
-        }
+      if (!hasValidTimestamp) {
+        logMessage(
+          `${merchantTransactionId} provider name missing but transaction date is invalid (${transactionDateRaw}). Skipping fail action.`
+        );
+        return;
       }
-      if (inquiryResponse) {
-        //console.log(`[${commandId}] Inquiry API Response:`, inquiryResponse.data);
-        let inquiryStatus = inquiryResponse?.data?.data?.transactionStatus?.toLowerCase();
-        let inquiryStatusCode = inquiryResponse?.data?.statusCode;
-        let inquiryrrUid = inquiryResponse?.data;
-        logMessage(`Inquiry Response for ${merchantTransactionId}: ${JSON.stringify(inquiryrrUid, null, 2)}`);
-        logMessage(`Inquiry Status for ${merchantTransactionId}: ${inquiryStatus}(Code: ${inquiryStatusCode})`);
-        if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatusCode === 500) {
+
+      if (ageMs < fourteenMinutesMs) {
+        const ageMinutes = (ageMs / 60000).toFixed(2);
+        logMessage(
+          `${merchantTransactionId} provider name missing and only ${ageMinutes} minutes old. Skipping fail action for now.`
+        );
+        return;
+      }
+
+      await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+      logMessage(`${merchantTransactionId} Status: Failed (provider name missing and older than 14 minutes).`);
+      return;
+    }
+
+    // Status inquiry for transactions (aligned with status_inquiry.js)
+    const performInquiry = async (transactionId) => {
+      if (providerName === "easypaisa") {
+        const url = `https://easypaisa-setup-server.assanpay.com/api/transactions/status-inquiry?orderId=${transactionId}`;
+        logMessage(`Using new EasyPaisa inquiry URL: ${url}`);
+        return retry(() => axios.get(url));
+      }
+      if (providerName === "jazzcash") {
+        const url = `https://easypaisa-setup-server.assanpay.com/api/jazzcash/transactions/status-inquiry?orderId=${transactionId}`;
+        logMessage(`Using new JazzCash inquiry URL: ${url}`);
+        return retry(() => axios.get(url));
+      }
+      if (providerName === "qr") {
+        const url = `https://easypaisa-setup-server.assanpay.com/api/bankislami/transactions/status-inquiry-external?orderId=${transactionId}`;
+        logMessage(`Using new QR inquiry URL: ${url}`);
+        return retry(() => axios.get(url));
+      }
+      throw new Error(`Unsupported provider for inquiry: ${providerName}`);
+    };
+
+    const performLegacyInquiry = async (uid, transactionId) => {
+      if (providerName === "easypaisa") {
+        const url = `https://server.sahulatpay.com/payment/inquiry-ep/${uid}?orderId=${transactionId}`;
+        logMessage(`Using legacy EasyPaisa inquiry URL: ${url}`);
+        return retry(() => axios.get(url));
+      }
+      if (providerName === "jazzcash") {
+        const url = `https://server.sahulatpay.com/payment/simple-status-inquiry/${uid}?transactionId=${transactionId}`;
+        logMessage(`Using legacy JazzCash inquiry URL: ${url}`);
+        return retry(() => axios.get(url));
+      }
+      throw new Error(`Unsupported provider for legacy inquiry: ${providerName}`);
+    };
+
+    const isEasyPaisaNotFoundResponse = (responseData) =>
+      providerName === "easypaisa" &&
+      responseData?.success === false &&
+      ["Transaction not found", "invalid inputs", "Something went wrong"].includes(responseData?.message) &&
+      responseData?.data?.statusCode === 404;
+
+    const isJazzCashInvalidResponse = (responseData, inquiryFailed) =>
+      providerName === "jazzcash" &&
+      (
+        inquiryFailed ||
+        (!responseData?.data?.transactionStatus &&
+          !responseData?.transactionStatus &&
+          !responseData?.data?.paymentStatus &&
+          !responseData?.paymentStatus) ||
+        (responseData?.statusCode && responseData.statusCode >= 500) ||
+        responseData?.success === false ||
+        !responseData
+      );
+
+    const merchantId = transaction.providerDetails?.id;
+    let mappedId = uidMap[merchantId];
+    let inquiryUid = null;
+    let inquiryResponse = null;
+
+    if (mappedId) {
+      logMessage(`Performing ${providerName} inquiry with mapped UID: ${mappedId}`);
+      inquiryUid = mappedId;
+      let inquiryFailed = false;
+
+      try {
+        inquiryResponse = await performInquiry(order);
+        logPayload(`Mapped inquiry response for ${merchantTransactionId}`, inquiryResponse?.data);
+      } catch (err) {
+        inquiryFailed = true;
+        logMessage(`Mapped inquiry failed for ${merchantTransactionId}: ${err.message}`);
+      }
+
+      const responseData = inquiryResponse?.data;
+      const shouldFallback =
+        isEasyPaisaNotFoundResponse(responseData) ||
+        isJazzCashInvalidResponse(responseData, inquiryFailed);
+
+      if (shouldFallback) {
+        const fallbackUid =
+          transaction.merchant?.uid ||
+          transaction.merchant?.groups?.[0]?.uid ||
+          transaction.merchant?.groups?.[0]?.merchant?.uid;
+
+        if (!fallbackUid) {
+          logMessage(`No fallback UID found for ${merchantTransactionId}. Marking failed.`);
           await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
-          //console.log(`[${commandId}] Transaction ${merchantTransactionId} marked as failed.`);
-          logMessage(`${merchantTransactionId} Status: Failed.`);
-          return;
-        } else if (inquiryStatus === "completed") {
-          await retry(() => axios.post(SETTLE_API_URL, { transactionId: merchantTransactionId }));
-          //console.log(`[${commandId}] Transaction ${merchantTransactionId} marked as completed.`);
-          logMessage(`Transaction Status ${merchantTransactionId} : Completed.`);
           return;
         }
-        else if (inquiryStatus === "pending") {
-         await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
-          //console.log(`[${commandId}] Transaction ${merchantTransactionId} marked as failed.`);
-          logMessage(`${merchantTransactionId} Status: Failed.`);
-          return;
-        } else {
-          logMessage(`Unknown status for transaction ${merchantTransactionId}: ${inquiryStatus}`);
+
+        inquiryUid = fallbackUid;
+        try {
+          inquiryResponse = await performLegacyInquiry(fallbackUid, order);
+          logPayload(`Fallback inquiry response for ${merchantTransactionId}`, inquiryResponse?.data);
+        } catch (err) {
+          logMessage(`Fallback inquiry failed for ${merchantTransactionId}: ${err.message}`);
+          await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
           return;
         }
       }
+    } else {
+      const uid =
+        transaction.merchant?.uid ||
+        transaction.merchant?.groups?.[0]?.uid ||
+        transaction.merchant?.groups?.[0]?.merchant?.uid;
+
+      if (!uid) {
+        logMessage(`No mapped UID or merchant UID for ${merchantTransactionId}. Marking failed.`);
+        await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+        return;
+      }
+
+      inquiryUid = uid;
+      try {
+        inquiryResponse = await performInquiry(order);
+        logPayload(`Direct inquiry response for ${merchantTransactionId}`, inquiryResponse?.data);
+
+        const responseData = inquiryResponse?.data;
+        if (
+          isEasyPaisaNotFoundResponse(responseData) ||
+          isJazzCashInvalidResponse(responseData, false)
+        ) {
+          inquiryResponse = await performLegacyInquiry(uid, order);
+          logPayload(`Direct legacy fallback response for ${merchantTransactionId}`, inquiryResponse?.data);
+        }
+      } catch (err) {
+        logMessage(`Direct inquiry failed for ${merchantTransactionId}: ${err.message}`);
+        await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+        return;
+      }
+    }
+
+    if (!inquiryResponse) {
+      logMessage(`No inquiry response for ${merchantTransactionId} (uid: ${inquiryUid}). Marking failed.`);
+      await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+      return;
+    }
+
+    const inquiryRawStatus =
+      inquiryResponse?.data?.data?.transactionStatus ||
+      inquiryResponse?.data?.transactionStatus ||
+      inquiryResponse?.data?.data?.paymentStatus ||
+      inquiryResponse?.data?.paymentStatus ||
+      inquiryResponse?.data?.data?.responseMessage;
+    const inquiryStatus = typeof inquiryRawStatus === "string" ? inquiryRawStatus.toLowerCase() : undefined;
+    const inquiryStatusCode = inquiryResponse?.data?.statusCode || inquiryResponse?.data?.data?.statusCode;
+
+    logPayload(`Final inquiry response for ${merchantTransactionId}`, inquiryResponse?.data);
+    logMessage(`Parsed inquiry status for ${merchantTransactionId}: ${inquiryStatus} (code: ${inquiryStatusCode}, inquiryUid: ${inquiryUid})`);
+
+    if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatusCode === 500) {
+      logMessage(`Marking ${merchantTransactionId} as FAILED via ${FAIL_API_URL}`);
+      await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+      return;
+    }
+
+    if (inquiryStatus === "completed" || inquiryStatus === "paid") {
+      logMessage(`Marking ${merchantTransactionId} as COMPLETED via ${SETTLE_API_URL}`);
+      await retry(() => axios.post(SETTLE_API_URL, { transactionId: merchantTransactionId }));
+      return;
+    }
+
+    if (inquiryStatus === "pending") {
+      // Existing bot behavior keeps pending inquiries as failed.
+      logMessage(`Inquiry status pending for ${merchantTransactionId}; marking FAILED via ${FAIL_API_URL}`);
+      await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+      return;
+    }
+
+    logMessage(`Unknown inquiry status for ${merchantTransactionId}: ${inquiryStatus}. No action taken.`);
     } catch (error) {
     console.error(`Error handling transaction ${order}:`, error.message);
     logMessage(`Error handling transaction ${order}: ${error.message}`);

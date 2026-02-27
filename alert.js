@@ -29,7 +29,12 @@ const config = {
         }
     },
     monitorInterval: 300000, // 5 minutes
+    monitorWindowMinutes: 15,
     retryInterval: 60000, // 1 minute for server down retries
+    webhook: {
+        successRateUrl: "https://tg-notify-bot.vercel.app/api/success-rate-webhook",
+        key: "A_Kmf-sW69DS3sNBG0XQzhmhqxOkeU8pkjuFlqVz"
+    },
     acknowledgment: {
         retries: 1,
         timeout: 60000 // 1 minute
@@ -131,6 +136,61 @@ function calculateStats(transactions) {
     return { total, completed, failed, pending, successRate };
 }
 
+async function sendSuccessRateWebhook(payload) {
+    console.log("Success-rate webhook request payload:", payload);
+    try {
+        const webhookResponse = await apiLimiter.schedule(() =>
+            pRetry(
+                () =>
+                    axios.post(config.webhook.successRateUrl, payload, {
+                        timeout: 10000,
+                        headers: {
+                            'X-Webhook-Key': config.webhook.key,
+                            'Content-Type': 'application/json'
+                        }
+                    }),
+                { retries: 2, minTimeout: 1000 }
+            )
+        );
+        console.log("Success-rate webhook sent", {
+            type: payload.type,
+            provider: payload.provider,
+            status: webhookResponse.status,
+            response: webhookResponse.data,
+            payload
+        });
+    } catch (err) {
+        console.error("Success-rate webhook failed", {
+            error: { message: err.message, code: err.code, response: err.response?.data },
+            payload
+        });
+    }
+}
+
+async function sendProviderSuccessRateWebhooks(statsMap) {
+    const timestamp = new Date().toISOString();
+    const providers = [
+        { provider: "Easypaisa", key: "All Easypaisa" },
+        { provider: "JazzCash", key: "All JazzCash" }
+    ];
+
+    for (const { provider, key } of providers) {
+        const stats = statsMap[key] || { total: 0, completed: 0, failed: 0, pending: 0, successRate: 0 };
+        const payload = {
+            type: "payin",
+            provider,
+            successRate: Number((stats.successRate || 0).toFixed(2)),
+            windowMinutes: config.monitorWindowMinutes,
+            total: stats.total,
+            completed: stats.completed,
+            failed: stats.failed,
+            pending: stats.pending,
+            timestamp
+        };
+        await sendSuccessRateWebhook(payload);
+    }
+}
+
 // Send message to Telegram
 async function sendTelegramMessage(text) {
     try {
@@ -229,6 +289,7 @@ function generateReportMessage(data, serverDown = false) {
 async function sendAlert(data, serverDown = false) {
     const message = generateReportMessage(data, serverDown);
     await sendTelegramMessage(message);
+    await sendProviderSuccessRateWebhooks(data);
     if (!serverDown) await sendChart(data); // Skip chart if server is down
     let acknowledged = false;
     for (let i = 0; i < config.acknowledgment.retries && !acknowledged; i++) {
@@ -348,8 +409,10 @@ async function startMonitoring() {
         const statsMap = {};
         const { transactions: allTxns } = await fetchTransactions(config.api.baseUrl);
         statsMap["All Transactions"] = calculateStats(allTxns);
-        statsMap["All Easypaisa"] = calculateStats(filterTransactionsByProvider(allTxns, "Easypaisa"));
-        statsMap["All JazzCash"] = calculateStats(filterTransactionsByProvider(allTxns, "JazzCash"));
+        const allEasypaisaStats = calculateStats(filterTransactionsByProvider(allTxns, "Easypaisa"));
+        const allJazzCashStats = calculateStats(filterTransactionsByProvider(allTxns, "JazzCash"));
+        statsMap["All Easypaisa"] = allEasypaisaStats;
+        statsMap["All JazzCash"] = allJazzCashStats;
 
         const merchantTxns = await Promise.all(
             Object.entries(config.api.merchants).map(([id, query]) => fetchTransactions(config.api.baseUrl + query))

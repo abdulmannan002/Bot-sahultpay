@@ -8,7 +8,7 @@ const FormData = require('form-data');
 // Configuration
 const config = {
     telegram: {
-        botToken: "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU",
+        botToken: "8354461566:AAH-FCoLjTRbl_3hQPn5lKUH8T9OXz02K-w",
         userId: '-1002662637300'
     },
     api: {
@@ -153,8 +153,6 @@ async function sendSuccessRateWebhook(payload) {
             )
         );
         console.log("Success-rate webhook sent", {
-            type: payload.type,
-            provider: payload.provider,
             status: webhookResponse.status,
             response: webhookResponse.data,
             payload
@@ -169,26 +167,30 @@ async function sendSuccessRateWebhook(payload) {
 
 async function sendProviderSuccessRateWebhooks(statsMap) {
     const timestamp = new Date().toISOString();
-    const providers = [
-        { provider: "Easypaisa", key: "All Easypaisa" },
-        { provider: "JazzCash", key: "All JazzCash" }
-    ];
+    const easypaisaStats = statsMap["All Easypaisa"] || { total: 0, completed: 0, failed: 0, pending: 0, successRate: 0 };
+    const jazzcashStats = statsMap["All JazzCash"] || { total: 0, completed: 0, failed: 0, pending: 0, successRate: 0 };
 
-    for (const { provider, key } of providers) {
-        const stats = statsMap[key] || { total: 0, completed: 0, failed: 0, pending: 0, successRate: 0 };
-        const payload = {
-            type: "payin",
-            provider,
-            successRate: Number((stats.successRate || 0).toFixed(2)),
-            windowMinutes: config.monitorWindowMinutes,
-            total: stats.total,
-            completed: stats.completed,
-            failed: stats.failed,
-            pending: stats.pending,
-            timestamp
-        };
-        await sendSuccessRateWebhook(payload);
-    }
+    const payload = {
+        type: "payin",
+        windowMinutes: config.monitorWindowMinutes,
+        timestamp,
+        easypaisa: {
+            successRate: Number((easypaisaStats.successRate || 0).toFixed(2)),
+            total: easypaisaStats.total,
+            completed: easypaisaStats.completed,
+            failed: easypaisaStats.failed,
+            pending: easypaisaStats.pending
+        },
+        jazzcash: {
+            successRate: Number((jazzcashStats.successRate || 0).toFixed(2)),
+            total: jazzcashStats.total,
+            completed: jazzcashStats.completed,
+            failed: jazzcashStats.failed,
+            pending: jazzcashStats.pending
+        }
+    };
+
+    await sendSuccessRateWebhook(payload);
 }
 
 // Send message to Telegram

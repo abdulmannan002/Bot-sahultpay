@@ -20,6 +20,7 @@ function formatNumber(value) {
 const DASHBOARD_APIS = [
   'https://api.sahulatpay.com/dashboard/merchant-details',
   'https://api5.assanpay.com/api/dashboard/merchant-details',
+  'https://sp-server.assanpay.com/dashboard/merchant-details',
 ];
 
 // Function to fetch and display dashboard data for a given merchant UUID

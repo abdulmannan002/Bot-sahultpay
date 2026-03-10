@@ -8,7 +8,7 @@ const FormData = require('form-data');
 // Configuration
 const config = {
     telegram: {
-        botToken: "8354461566:AAH-FCoLjTRbl_3hQPn5lKUH8T9OXz02K-w",
+        botToken: "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU",
         userId: '-1002662637300'
     },
     api: {
@@ -291,7 +291,6 @@ function generateReportMessage(data, serverDown = false) {
 async function sendAlert(data, serverDown = false) {
     const message = generateReportMessage(data, serverDown);
     await sendTelegramMessage(message);
-    await sendProviderSuccessRateWebhooks(data);
     if (!serverDown) await sendChart(data); // Skip chart if server is down
     let acknowledged = false;
     for (let i = 0; i < config.acknowledgment.retries && !acknowledged; i++) {
@@ -445,6 +444,13 @@ async function startMonitoring() {
         });
 
         logger.info("Stats calculated", { statsMap });
+
+        const allTransactionsTotal = statsMap["All Transactions"]?.total || 0;
+        if (allTransactionsTotal > 0) {
+            await sendProviderSuccessRateWebhooks(statsMap);
+        } else {
+            logger.info("Skipping success-rate webhook because total transactions is 0");
+        }
 
         const shouldAlert = Object.values(statsMap).some(s => s.successRate < 100 || (s.successRate === 0 && s.total === 0));
         if (shouldAlert) await sendAlert(statsMap, !serverStable);

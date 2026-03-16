@@ -31,6 +31,22 @@ const config = {
     monitorInterval: 300000, // 5 minutes
     monitorWindowMinutes: 15,
     retryInterval: 60000, // 1 minute for server down retries
+    serviceBeacon: {
+        endpoints: [
+            {
+                label: 'Sahulatpay Domain',
+                url: 'https://api.sahulatpay.com/service-beacon'
+            },
+            {
+                label: 'Assanpay Domain',
+                url: 'https://api.assanpay.com/service-beacon'
+            }
+        ],
+        healthyInterval: 60000,
+        incidentInterval: 30000,
+        alertDelay: 10000,
+        timeout: 10000
+    },
     webhook: {
         successRateUrl: "https://tg-notify-bot.vercel.app/api/success-rate-webhook",
         key: "A_Kmf-sW69DS3sNBG0XQzhmhqxOkeU8pkjuFlqVz"
@@ -67,6 +83,7 @@ const canvas = new ChartJSNodeCanvas({ width: 800, height: 600 });
 
 // Global offset for Telegram message polling
 let lastUpdateId = 0;
+const serviceBeaconStatus = {};
 
 // Delete and verify Telegram webhook
 async function deleteWebhook() {
@@ -134,6 +151,220 @@ function calculateStats(transactions) {
     const pending = transactions.filter(txn => txn.status === "pending").length;
     const successRate = total === 0 ? 0 : (completed / total) * 100;
     return { total, completed, failed, pending, successRate };
+}
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const getServiceBeaconRetryText = () =>
+    `Retrying every ${Math.round(config.serviceBeacon.incidentInterval / 1000)} seconds.`;
+
+async function sendDelayedServiceBeaconMessage(serviceConfig, expectedStatus, text) {
+    await delay(config.serviceBeacon.alertDelay);
+
+    const currentStatus = serviceBeaconStatus[serviceConfig.label];
+    if (currentStatus !== expectedStatus) {
+        logger.info("Skipping stale service beacon alert", {
+            label: serviceConfig.label,
+            expectedStatus,
+            currentStatus
+        });
+        return;
+    }
+
+    await sendTelegramMessage(text);
+}
+
+async function fetchServiceBeaconStatus(serviceConfig) {
+    try {
+        const response = await apiLimiter.schedule(() =>
+            axios.get(serviceConfig.url, {
+                timeout: config.serviceBeacon.timeout,
+                validateStatus: () => true
+            })
+        );
+        const payload = response.data || {};
+        const isHealthy =
+            payload.success === true &&
+            payload.data?.ok === true &&
+            payload.statusCode === 200;
+        const isDegraded =
+            payload.success === false &&
+            payload.statusCode === 503;
+
+        if (isHealthy) {
+            logger.info("Service beacon healthy", { label: serviceConfig.label, payload });
+            return { status: 'healthy', payload };
+        }
+
+        if (isDegraded) {
+            logger.warn("Service beacon degraded", { label: serviceConfig.label, payload });
+            return { status: 'degraded', payload };
+        }
+
+        logger.warn("Service beacon returned unexpected response", {
+            label: serviceConfig.label,
+            payload,
+            httpStatus: response.status
+        });
+        return { status: 'degraded', payload };
+    } catch (error) {
+        logger.error("Service beacon request failed", {
+            label: serviceConfig.label,
+            error: { message: error.message, code: error.code, response: error.response?.data }
+        });
+        return {
+            status: 'down',
+            error
+        };
+    }
+}
+
+async function handleServiceBeaconTransition(serviceConfig, nextStatus, details = {}) {
+    const previousStatus = serviceBeaconStatus[serviceConfig.label] || 'unknown';
+    const isRepeatIncident =
+        nextStatus === previousStatus &&
+        (nextStatus === 'down' || nextStatus === 'degraded');
+
+    if (nextStatus === previousStatus && nextStatus === 'healthy') return;
+
+    serviceBeaconStatus[serviceConfig.label] = nextStatus;
+
+    if (nextStatus === 'healthy') {
+        logger.info("Service beacon recovered", {
+            label: serviceConfig.label,
+            previousStatus
+        });
+        if (previousStatus !== 'unknown' && previousStatus !== 'healthy') {
+            await sendTelegramMessage(
+                `\u{1F7E2} *Service Up*: ${serviceConfig.label} is healthy again.\n` +
+                `Previous status: ${previousStatus}`
+            );
+        }
+        return;
+    }
+
+    if (nextStatus === 'degraded') {
+        sendDelayedServiceBeaconMessage(
+            serviceConfig,
+            nextStatus,
+            `\u{1F7E0} *Service Degraded*: ${serviceConfig.label} machine is up but database connection is lost.\n` +
+                `Message: ${details.payload?.message || 'Service is degraded'}\n` +
+                getServiceBeaconRetryText()
+        ).catch((error) =>
+            logger.error("Failed to send delayed service beacon alert", {
+                label: serviceConfig.label,
+                expectedStatus: nextStatus,
+                isRepeatIncident,
+                error: { message: error.message, code: error.code }
+            })
+        );
+        return;
+    }
+
+    if (nextStatus === 'down') {
+        sendDelayedServiceBeaconMessage(
+            serviceConfig,
+            nextStatus,
+            `\u{1F534} *Server Down*: ${serviceConfig.label} requests are not reaching service.\n` +
+                `Error: ${details.error?.message || 'Unknown network error'}\n` +
+                getServiceBeaconRetryText()
+        ).catch((error) =>
+            logger.error("Failed to send delayed service beacon alert", {
+                label: serviceConfig.label,
+                expectedStatus: nextStatus,
+                isRepeatIncident,
+                error: { message: error.message, code: error.code }
+            })
+        );
+    }
+}
+
+async function startServiceBeaconMonitoring() {
+    return startServiceBeaconDomainMonitoring(config.serviceBeacon.endpoints[0]);
+}
+
+async function notifyServiceBeaconDomainTransition(serviceConfig, nextStatus, details = {}) {
+    const previousStatus = serviceBeaconStatus[serviceConfig.label] || 'unknown';
+    const isRepeatIncident =
+        nextStatus === previousStatus &&
+        (nextStatus === 'down' || nextStatus === 'degraded');
+
+    if (nextStatus === previousStatus && nextStatus === 'healthy') return;
+
+    serviceBeaconStatus[serviceConfig.label] = nextStatus;
+
+    if (nextStatus === 'healthy') {
+        logger.info("Service beacon recovered", {
+            label: serviceConfig.label,
+            previousStatus
+        });
+        if (previousStatus !== 'unknown' && previousStatus !== 'healthy') {
+            await sendTelegramMessage(
+                `\u{1F7E2} *Service Up*: ${serviceConfig.label} is healthy again.\n` +
+                `Previous status: ${previousStatus}`
+            );
+        }
+        return;
+    }
+
+    if (nextStatus === 'degraded') {
+        sendDelayedServiceBeaconMessage(
+            serviceConfig,
+            nextStatus,
+            `\u{1F7E0} *Service Degraded*: ${serviceConfig.label} machine is up but database connection is lost.\n` +
+                `Message: ${details.payload?.message || 'Service is degraded'}\n` +
+                getServiceBeaconRetryText()
+        ).catch((error) =>
+            logger.error("Failed to send delayed service beacon alert", {
+                label: serviceConfig.label,
+                expectedStatus: nextStatus,
+                isRepeatIncident,
+                error: { message: error.message, code: error.code }
+            })
+        );
+        return;
+    }
+
+    if (nextStatus === 'down') {
+        sendDelayedServiceBeaconMessage(
+            serviceConfig,
+            nextStatus,
+            `\u{1F534} *Server Down*: ${serviceConfig.label} requests are not reaching service.\n` +
+                `Error: ${details.error?.message || 'Unknown network error'}\n` +
+                getServiceBeaconRetryText()
+        ).catch((error) =>
+            logger.error("Failed to send delayed service beacon alert", {
+                label: serviceConfig.label,
+                expectedStatus: nextStatus,
+                isRepeatIncident,
+                error: { message: error.message, code: error.code }
+            })
+        );
+    }
+}
+
+async function startServiceBeaconDomainMonitoring(serviceConfig) {
+    logger.info("Starting service beacon monitoring", {
+        label: serviceConfig.label,
+        url: serviceConfig.url
+    });
+
+    while (true) {
+        const result = await fetchServiceBeaconStatus(serviceConfig);
+        await notifyServiceBeaconDomainTransition(serviceConfig, result.status, result);
+
+        const waitMs =
+            result.status === 'healthy'
+                ? config.serviceBeacon.healthyInterval
+                : config.serviceBeacon.incidentInterval;
+
+        logger.info("Service beacon next poll scheduled", {
+            label: serviceConfig.label,
+            status: result.status,
+            waitMs
+        });
+
+        await delay(waitMs);
+    }
 }
 
 async function sendSuccessRateWebhook(payload) {
@@ -393,6 +624,15 @@ async function checkUserCommands() {
 async function startMonitoring() {
     logger.info("Starting monitoring");
     await deleteWebhook();
+    config.serviceBeacon.endpoints.forEach((serviceConfig) => {
+        serviceBeaconStatus[serviceConfig.label] = 'unknown';
+        startServiceBeaconDomainMonitoring(serviceConfig).catch((err) =>
+            logger.error("Service beacon monitoring crashed", {
+                label: serviceConfig.label,
+                error: { message: err.message, code: err.code }
+            })
+        );
+    });
 
     while (true) {
         logger.info("Checking server status");

@@ -170,7 +170,10 @@ async function sendDelayedServiceBeaconMessage(serviceConfig, expectedStatus, te
         return;
     }
 
-    await sendTelegramMessage(text);
+    const messageId = await sendTelegramMessage(text);
+    if (messageId) {
+        await pinTelegramMessage(messageId);
+    }
 }
 
 async function fetchServiceBeaconStatus(serviceConfig) {
@@ -427,7 +430,7 @@ async function sendProviderSuccessRateWebhooks(statsMap) {
 // Send message to Telegram
 async function sendTelegramMessage(text) {
     try {
-        await telegramLimiter.schedule(() =>
+        const res = await telegramLimiter.schedule(() =>
             pRetry(() =>
                 axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendMessage`, {
                     chat_id: config.telegram.userId,
@@ -437,9 +440,34 @@ async function sendTelegramMessage(text) {
                 { retries: 2, minTimeout: 2000 }
             )
         );
-        logger.info("Telegram message sent", { text });
+        const messageId = res?.data?.result?.message_id;
+        logger.info("Telegram message sent", { text, messageId });
+        return messageId;
     } catch (err) {
         logger.error("Telegram message failed", {
+            error: { message: err.message, code: err.code, response: err.response?.data }
+        });
+        return null;
+    }
+}
+
+async function pinTelegramMessage(messageId) {
+    try {
+        await telegramLimiter.schedule(() =>
+            pRetry(
+                () =>
+                    axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/pinChatMessage`, {
+                        chat_id: config.telegram.userId,
+                        message_id: messageId,
+                        disable_notification: true
+                    }),
+                { retries: 2, minTimeout: 2000 }
+            )
+        );
+        logger.info("Telegram message pinned", { messageId });
+    } catch (err) {
+        logger.error("Telegram pin failed", {
+            messageId,
             error: { message: err.message, code: err.code, response: err.response?.data }
         });
     }

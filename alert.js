@@ -43,7 +43,8 @@ const config = {
             }
         ],
         healthyInterval: 60000,
-        incidentInterval: 30000,
+        incidentInterval: 60000,
+        incidentMessageInterval: 30000,
         alertDelay: 10000,
         timeout: 10000
     },
@@ -155,19 +156,21 @@ function calculateStats(transactions) {
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const getServiceBeaconRetryText = () =>
-    `Retrying every ${Math.round(config.serviceBeacon.incidentInterval / 1000)} seconds.`;
+    `Retrying every ${Math.round(config.serviceBeacon.incidentMessageInterval / 1000)} seconds.`;
 
 async function sendDelayedServiceBeaconMessage(serviceConfig, expectedStatus, text) {
     await delay(config.serviceBeacon.alertDelay);
 
-    const currentStatus = serviceBeaconStatus[serviceConfig.label];
-    if (currentStatus !== expectedStatus) {
-        logger.info("Skipping stale service beacon alert", {
-            label: serviceConfig.label,
-            expectedStatus,
-            currentStatus
-        });
-        return;
+    if (expectedStatus) {
+        const currentStatus = serviceBeaconStatus[serviceConfig.label];
+        if (currentStatus !== expectedStatus) {
+            logger.info("Skipping stale service beacon alert", {
+                label: serviceConfig.label,
+                expectedStatus,
+                currentStatus
+            });
+            return;
+        }
     }
 
     const messageId = await sendTelegramMessage(text);
@@ -210,6 +213,18 @@ async function fetchServiceBeaconStatus(serviceConfig) {
         });
         return { status: 'degraded', payload };
     } catch (error) {
+        if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+            logger.warn("Service beacon request timed out", {
+                label: serviceConfig.label,
+                timeoutMs: config.serviceBeacon.timeout,
+                error: { message: error.message, code: error.code }
+            });
+            return {
+                status: 'timeout',
+                error
+            };
+        }
+
         logger.error("Service beacon request failed", {
             label: serviceConfig.label,
             error: { message: error.message, code: error.code, response: error.response?.data }
@@ -222,6 +237,23 @@ async function fetchServiceBeaconStatus(serviceConfig) {
 }
 
 async function handleServiceBeaconTransition(serviceConfig, nextStatus, details = {}) {
+    if (nextStatus === 'timeout') {
+        sendDelayedServiceBeaconMessage(
+            serviceConfig,
+            null,
+            `\u{1F7E0} *Service Timeout*: ${serviceConfig.label} service beacon request timed out.\n` +
+                `Error: ${details.error?.message || 'Request timed out'}\n` +
+                getServiceBeaconRetryText()
+        ).catch((error) =>
+            logger.error("Failed to send delayed service beacon alert", {
+                label: serviceConfig.label,
+                expectedStatus: nextStatus,
+                error: { message: error.message, code: error.code }
+            })
+        );
+        return;
+    }
+
     const previousStatus = serviceBeaconStatus[serviceConfig.label] || 'unknown';
     const isRepeatIncident =
         nextStatus === previousStatus &&
@@ -286,6 +318,23 @@ async function startServiceBeaconMonitoring() {
 }
 
 async function notifyServiceBeaconDomainTransition(serviceConfig, nextStatus, details = {}) {
+    if (nextStatus === 'timeout') {
+        sendDelayedServiceBeaconMessage(
+            serviceConfig,
+            null,
+            `\u{1F7E0} *Service Timeout*: ${serviceConfig.label} service beacon request timed out.\n` +
+                `Error: ${details.error?.message || 'Request timed out'}\n` +
+                getServiceBeaconRetryText()
+        ).catch((error) =>
+            logger.error("Failed to send delayed service beacon alert", {
+                label: serviceConfig.label,
+                expectedStatus: nextStatus,
+                error: { message: error.message, code: error.code }
+            })
+        );
+        return;
+    }
+
     const previousStatus = serviceBeaconStatus[serviceConfig.label] || 'unknown';
     const isRepeatIncident =
         nextStatus === previousStatus &&

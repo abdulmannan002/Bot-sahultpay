@@ -21,10 +21,12 @@ const config = {
             70: '?merchantId=70',
             603: '?merchantId=603',
             805: '?merchantId=805',
+            848: '?merchantId=848',
             47: '?merchantId=47',
             621:'?merchantId=621',
             49: '?merchantId=49',
             1050: '?merchantId=1050',
+            1223: '?merchantId=1223',
             2049: '?merchantId=2049',
         }
     },
@@ -79,12 +81,25 @@ const logger = winston.createLogger({
 const apiLimiter = new Bottleneck({ minTime: 1000 }); // API requests
 const telegramLimiter = new Bottleneck({ minTime: 1000 }); // Telegram requests
 
-// Initialize chart renderer
-const canvas = new ChartJSNodeCanvas({ width: 800, height: 600 });
-
 // Global offset for Telegram message polling
 let lastUpdateId = 0;
 const serviceBeaconStatus = {};
+const merchantNameMap = {
+    "672": "ABC 1",
+    "444": "Monetix",
+    "655": "PAY GAMES",
+    "451": "First Pay",
+    "49": "UNITY FINANCE",
+    "47": "DZEN PAY",
+    "70": "ABC 2",
+    "603": "ABC 3",
+    "805": "ABC 4",
+    "848": "ABC PAY",
+    "621": "SETTLE PAY",
+    "1050": "PAYPRO",
+    "1223": "PAY PRO",
+    "2049": "OK PAY",
+};
 
 // Delete and verify Telegram webhook
 async function deleteWebhook() {
@@ -142,7 +157,9 @@ async function checkServerStatus() {
 
 // Filter transactions by provider
 const filterTransactionsByProvider = (transactions, providerName) =>
-    transactions.filter(txn => txn.providerDetails?.name === providerName);
+    transactions.filter(
+        txn => txn.providerDetails?.name?.trim().toLowerCase() === providerName.trim().toLowerCase()
+    );
 
 // Calculate success stats
 function calculateStats(transactions) {
@@ -522,18 +539,42 @@ async function pinTelegramMessage(messageId) {
     }
 }
 
-// Generate and send chart
-async function sendChart(statsMap) {
+function buildProviderChartStats(allTxns, merchantTransactions) {
+    const providerLabels = ["Easypaisa", "JazzCash", "QR"];
+    const providerCharts = {};
+
+    for (const providerLabel of providerLabels) {
+        const chartStats = {};
+        chartStats[`All ${providerLabel}`] = calculateStats(filterTransactionsByProvider(allTxns, providerLabel));
+
+        merchantTransactions.forEach(({ name, transactions }) => {
+            const providerTransactions = filterTransactionsByProvider(transactions, providerLabel);
+            if (providerTransactions.length) {
+                chartStats[`${name} ${providerLabel}`] = calculateStats(providerTransactions);
+            }
+        });
+
+        providerCharts[providerLabel] = chartStats;
+    }
+
+    return providerCharts;
+}
+
+async function sendSingleProviderChart(providerLabel, statsMap) {
     try {
+        const labels = Object.keys(statsMap);
+        const successRates = Object.values(statsMap).map(stat => stat.successRate);
+        const chartWidth = Math.max(900, labels.length * 110);
+        const providerCanvas = new ChartJSNodeCanvas({ width: chartWidth, height: 600 });
         const chartConfig = {
             type: 'bar',
             data: {
-                labels: Object.keys(statsMap),
+                labels,
                 datasets: [{
                     label: 'Success Rate (%)',
-                    data: Object.values(statsMap).map(stat => stat.successRate),
-                    backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#4CAF50'],
-                    borderColor: ['#2A87D0', '#E05570', '#E6B800', '#3AA8A8', '#7A52CC', '#E68A00', '#388E3C'],
+                    data: successRates,
+                    backgroundColor: labels.map((_, index) => ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#4CAF50'][index % 7]),
+                    borderColor: labels.map((_, index) => ['#2A87D0', '#E05570', '#E6B800', '#3AA8A8', '#7A52CC', '#E68A00', '#388E3C'][index % 7]),
                     borderWidth: 1
                 }]
             },
@@ -544,15 +585,15 @@ async function sendChart(statsMap) {
                 },
                 plugins: {
                     legend: { display: false },
-                    title: { display: true, text: 'Transaction Success Rates (Last 15 Minutes)' }
+                    title: { display: true, text: `${providerLabel} Success Rates (Last 15 Minutes)` }
                 }
             }
         };
-        const buffer = await canvas.renderToBuffer(chartConfig, 'image/png');
+        const buffer = await providerCanvas.renderToBuffer(chartConfig, 'image/png');
         const form = new FormData();
         form.append('chat_id', config.telegram.userId);
-        form.append('photo', buffer, { filename: 'chart.png', contentType: 'image/png' });
-        form.append('caption', 'Transaction Success Rates');
+        form.append('photo', buffer, { filename: `${providerLabel.toLowerCase()}-chart.png`, contentType: 'image/png' });
+        form.append('caption', `${providerLabel} Transaction Success Rates`);
         await telegramLimiter.schedule(() =>
             pRetry(() =>
                 axios.post(`https://api.telegram.org/bot${config.telegram.botToken}/sendPhoto`, form, {
@@ -561,11 +602,19 @@ async function sendChart(statsMap) {
                 { retries: 2, minTimeout: 2000 }
             )
         );
-        logger.info("Chart sent to Telegram");
+        logger.info("Provider chart sent to Telegram", { provider: providerLabel });
     } catch (err) {
-        logger.error("Error sending chart", {
+        logger.error("Error sending provider chart", {
+            provider: providerLabel,
             error: { message: err.message, code: err.code, response: err.response?.data }
         });
+    }
+}
+
+// Generate and send charts per provider
+async function sendChart(providerCharts) {
+    for (const providerLabel of ["Easypaisa", "JazzCash", "QR"]) {
+        await sendSingleProviderChart(providerLabel, providerCharts[providerLabel]);
     }
 }
 
@@ -579,7 +628,7 @@ function generateReportMessage(data, serverDown = false) {
     for (const [type, stats] of Object.entries(data)) {
         const { total, completed, failed, pending, successRate } = stats;
         if (total === 0 && successRate === 0) {
-            message += `⚠️ *${type}*: No data (Possible API issue)\n`;
+            message += `ℹ️ *${type}*: No transactions in last 10 minutes\n`;
         } else {
             const alertEmoji = successRate < 60 ? "🔻" : "✅";
             message += `*${type}* ${alertEmoji}:\n` +
@@ -589,17 +638,17 @@ function generateReportMessage(data, serverDown = false) {
         }
     }
     if (hasApiError && !serverDown) {
-        message += "⚠️ *Note*: No data received. This may indicate a script error. Check logs for details.\n";
+        message += "ℹ️ *Note*: No transactions were returned in the last 10 minutes.\n";
     }
     message += "Reply with `/check` to acknowledge.";
     return message;
 }
 
 // Send consolidated alert
-async function sendAlert(data, serverDown = false) {
+async function sendAlert(data, providerCharts, serverDown = false) {
     const message = generateReportMessage(data, serverDown);
     await sendTelegramMessage(message);
-    if (!serverDown) await sendChart(data); // Skip chart if server is down
+    if (!serverDown) await sendChart(providerCharts); // Skip chart if server is down
     let acknowledged = false;
     for (let i = 0; i < config.acknowledgment.retries && !acknowledged; i++) {
         await new Promise(r => setTimeout(r, config.acknowledgment.timeout));
@@ -729,36 +778,27 @@ async function startMonitoring() {
         statsMap["All Transactions"] = calculateStats(allTxns);
         const allEasypaisaStats = calculateStats(filterTransactionsByProvider(allTxns, "Easypaisa"));
         const allJazzCashStats = calculateStats(filterTransactionsByProvider(allTxns, "JazzCash"));
+        const allQrStats = calculateStats(filterTransactionsByProvider(allTxns, "QR"));
         statsMap["All Easypaisa"] = allEasypaisaStats;
         statsMap["All JazzCash"] = allJazzCashStats;
+        statsMap["All QR"] = allQrStats;
 
         const merchantTxns = await Promise.all(
             Object.entries(config.api.merchants).map(([id, query]) => fetchTransactions(config.api.baseUrl + query))
         );
+        const merchantTransactions = [];
 
         Object.entries(config.api.merchants).forEach(([id, query], index) => {
             const { transactions: txns } = merchantTxns[index];
-            const merchantNameMap = {
-              "672": "ABC 1",
-              "444": "Monetix",
-              "655": "PAY GAMES",
-              "451": "First Pay",
-              "49": "UNITY FINANCE",
-              "47": "DZEN PAY",
-              "70": "ABC 2",
-              "603": "ABC 3",
-              "805": "ABC 4",
-              "621": "SETTLE PAY",
-              "1050": "PAYPRO",
-              "2049": "OK PAY",
-            };
-            
             const name = merchantNameMap[id] || `Merchant ${id}`;
+            merchantTransactions.push({ name, transactions: txns });
             const easypaisa = filterTransactionsByProvider(txns, "Easypaisa");
             const jazzcash = filterTransactionsByProvider(txns, "JazzCash");
             if (easypaisa.length) statsMap[`${name} Easypaisa`] = calculateStats(easypaisa);
             if (jazzcash.length) statsMap[`${name} JazzCash`] = calculateStats(jazzcash);
         });
+
+        const providerCharts = buildProviderChartStats(allTxns, merchantTransactions);
 
         logger.info("Stats calculated", { statsMap });
 
@@ -770,7 +810,7 @@ async function startMonitoring() {
         }
 
         const shouldAlert = Object.values(statsMap).some(s => s.successRate < 100 || (s.successRate === 0 && s.total === 0));
-        if (shouldAlert) await sendAlert(statsMap, !serverStable);
+        if (shouldAlert) await sendAlert(statsMap, providerCharts, !serverStable);
 
         logger.info("Monitoring cycle completed. Waiting 5 minutes...");
         await new Promise(r => setTimeout(r, config.monitorInterval));

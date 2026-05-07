@@ -313,6 +313,19 @@ const handleTransaction = async (order) => {
     let status = transaction.status.trim().toLowerCase();
     let merchantTransactionId = transaction.merchant_transaction_id || transaction.merchant_custom_order_id;
     let txn_id = transaction.transaction_id;
+    // Helper to safely mark a transaction as failed — skips fail for QR provider
+    const safeFail = async (id, reason) => {
+      if (providerName === "qr") {
+        logMessage(`QR provider detected for ${id}; skipping fail (${reason}).`);
+        return;
+      }
+      try {
+        await retry(() => axios.post(FAIL_API_URL, { transactionIds: [id] }));
+        logMessage(`Marked ${id} as FAILED via ${FAIL_API_URL} (${reason}).`);
+      } catch (err) {
+        logMessage(`Error marking ${id} as failed: ${err.message}`);
+      }
+    };
     //let uid = transaction.merchant?.uid || transaction.merchant?.groups?.[0]?.uid || transaction.merchant?.groups?.[0]?.merchant?.uid;
 
     if (status === "completed") {
@@ -353,7 +366,7 @@ const handleTransaction = async (order) => {
         return;
       }
 
-      await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+      await safeFail(merchantTransactionId, 'provider name missing and older than 14 minutes');
       logMessage(`${merchantTransactionId} Status: Failed (provider name missing and older than 14 minutes).`);
       return;
     }
@@ -442,7 +455,7 @@ const handleTransaction = async (order) => {
 
         if (!fallbackUid) {
           logMessage(`No fallback UID found for ${merchantTransactionId}. Marking failed.`);
-          await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+          await safeFail(merchantTransactionId, 'no fallback UID');
           return;
         }
 
@@ -452,7 +465,7 @@ const handleTransaction = async (order) => {
           logPayload(`Fallback inquiry response for ${merchantTransactionId}`, inquiryResponse?.data);
         } catch (err) {
           logMessage(`Fallback inquiry failed for ${merchantTransactionId}: ${err.message}`);
-          await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+          await safeFail(merchantTransactionId, 'fallback inquiry failed');
           return;
         }
       }
@@ -464,7 +477,7 @@ const handleTransaction = async (order) => {
 
       if (!uid) {
         logMessage(`No mapped UID or merchant UID for ${merchantTransactionId}. Marking failed.`);
-        await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+        await safeFail(merchantTransactionId, 'no uid');
         return;
       }
 
@@ -483,12 +496,16 @@ const handleTransaction = async (order) => {
         }
       } catch (err) {
         logMessage(`Direct inquiry failed for ${merchantTransactionId}: ${err.message}`);
-        await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+        await safeFail(merchantTransactionId, 'direct inquiry failed');
         return;
       }
     }
 
     if (!inquiryResponse) {
+      if (providerName === "qr") {
+        logMessage(`No inquiry response for ${merchantTransactionId} (uid: ${inquiryUid}) and provider QR; skipping fail.`);
+        return;
+      }
       logMessage(`No inquiry response for ${merchantTransactionId} (uid: ${inquiryUid}). Marking failed.`);
       await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
       return;
@@ -506,22 +523,24 @@ const handleTransaction = async (order) => {
     logPayload(`Final inquiry response for ${merchantTransactionId}`, inquiryResponse?.data);
     logMessage(`Parsed inquiry status for ${merchantTransactionId}: ${inquiryStatus} (code: ${inquiryStatusCode}, inquiryUid: ${inquiryUid})`);
 
-    if (!inquiryStatus || inquiryStatus === "failed" || inquiryStatusCode === 500) {
-      logMessage(`Marking ${merchantTransactionId} as FAILED via ${FAIL_API_URL}`);
-      await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+    // For QR provider, do not mark as failed when status is missing or inquiry code is 500;
+    // only treat explicit 'failed' as failure. For other providers, preserve existing behavior.
+    if (
+      (inquiryStatus === "failed") ||
+      ((!inquiryStatus || inquiryStatusCode === 500) && providerName !== "qr")
+    ) {
+      await safeFail(merchantTransactionId, `inquiry status: ${inquiryStatus} (code: ${inquiryStatusCode})`);
       return;
     }
 
-    if (inquiryStatus === "completed" || inquiryStatus === "paid") {
+    if (inquiryStatus === "completed" || inquiryStatus === "paid" || inquiryStatus === "success" || inquiryStatus === "successful") {
       logMessage(`Marking ${merchantTransactionId} as COMPLETED via ${SETTLE_API_URL}`);
       await retry(() => axios.post(SETTLE_API_URL, { transactionId: merchantTransactionId }));
       return;
     }
 
     if (inquiryStatus === "pending") {
-      // Existing bot behavior keeps pending inquiries as failed.
-      logMessage(`Inquiry status pending for ${merchantTransactionId}; marking FAILED via ${FAIL_API_URL}`);
-      await retry(() => axios.post(FAIL_API_URL, { transactionIds: [merchantTransactionId] }));
+      logMessage(`Inquiry status pending for ${merchantTransactionId}; skipping action for now.`);
       return;
     }
 

@@ -446,6 +446,34 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
             !responseData
           );
 
+        /** BankIslami QR external failed — retry Zindigi with internal transaction_id (not merchant order id). */
+        const shouldQrFallbackToZindigi = (responseData) => {
+          if (providerName !== "qr" || !responseData?.error) return false;
+          const msg = String(responseData.message || "").toLowerCase();
+          const rm = String(responseData.responseMessage || "").toLowerCase();
+          const sc = responseData.statusCode;
+
+          if (sc === 404 && msg.includes("transaction not found")) return true;
+
+          // e.g. statusCode 400, responseMessage "Account not found", message about accountId / transaction
+          if (sc === 400) {
+            if (rm.includes("account not found")) return true;
+            if (msg.includes("could not find account")) return true;
+          }
+
+          return false;
+        };
+
+        const QR_ZINDIGI_STATUS_INQUIRY_EXTERNAL =
+          "https://easypaisa-setup-server.assanpay.com/api/zindigi/transactions/status-inquiry-external";
+
+        /** Zindigi QR external: account/lookup failure (retry with another orderId shape). */
+        const isZindigiQrAccountInquiryError = (d) =>
+          !!d &&
+          d.error === true &&
+          d.statusCode === 400 &&
+          String(d.message || "").toLowerCase().includes("could not find account");
+
         // Get merchant ID and mapped UUID
         const merchantId = transaction.providerDetails?.id;
         let mappedId = uidMap[merchantId];
@@ -531,6 +559,75 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           }
         }
 
+        if (providerName === "qr" && inquiryResponse && shouldQrFallbackToZindigi(inquiryResponse.data)) {
+          const txnId =
+            transaction.transaction_id ||
+            inquiryResponse.data?.transaction_id ||
+            inquiryResponse.data?.transactions?.[0]?.transaction_id;
+          const dataOrderId =
+            merchantTransactionId ||
+            transaction.merchant_transaction_id ||
+            transaction.merchant_custom_order_id;
+          const userOrder = String(order || "").trim();
+
+          const callZindigiExternal = async (orderIdParam, stepLabel) => {
+            console.log(
+              `QR BankIslami failed → Zindigi external ${stepLabel}: orderId=${orderIdParam}`
+            );
+            return await axiosInstance.get(
+              `${QR_ZINDIGI_STATUS_INQUIRY_EXTERNAL}?orderId=${encodeURIComponent(orderIdParam)}`
+            );
+          };
+
+          try {
+            let d = inquiryResponse?.data;
+
+            if (txnId) {
+              inquiryResponse = await callZindigiExternal(txnId, "(1) transaction_id");
+              d = inquiryResponse.data;
+              console.log("QR Zindigi external inquiry response:", d);
+
+              if (isZindigiQrAccountInquiryError(d) && dataOrderId && String(dataOrderId) !== String(txnId)) {
+                inquiryResponse = await callZindigiExternal(dataOrderId, "(2) merchant_order_id");
+                d = inquiryResponse.data;
+                console.log("QR Zindigi external inquiry response:", d);
+              }
+
+              if (isZindigiQrAccountInquiryError(d)) {
+                const thirdDistinct =
+                  userOrder &&
+                  userOrder !== String(txnId) &&
+                  userOrder !== String(dataOrderId || "");
+                const thirdId = thirdDistinct ? userOrder : txnId;
+                const thirdLabel = thirdDistinct ? "(3) command_order_id" : "(3) transaction_id_retry";
+                if (thirdId) {
+                  inquiryResponse = await callZindigiExternal(thirdId, thirdLabel);
+                  console.log("QR Zindigi external inquiry response:", inquiryResponse.data);
+                }
+              }
+            } else if (dataOrderId) {
+              inquiryResponse = await callZindigiExternal(dataOrderId, "(1) merchant_order_id");
+              console.log("QR Zindigi external inquiry response:", inquiryResponse.data);
+              d = inquiryResponse.data;
+              if (isZindigiQrAccountInquiryError(d) && userOrder && userOrder !== String(dataOrderId)) {
+                inquiryResponse = await callZindigiExternal(userOrder, "(2) command_order_id");
+                console.log("QR Zindigi external inquiry response:", inquiryResponse.data);
+                d = inquiryResponse.data;
+              }
+              if (isZindigiQrAccountInquiryError(d) && dataOrderId) {
+                inquiryResponse = await callZindigiExternal(dataOrderId, "(3) merchant_order_id_retry");
+                console.log("QR Zindigi external inquiry response:", inquiryResponse.data);
+              }
+            } else {
+              console.warn(
+                "QR BankIslami error but no transaction_id or merchant order id for Zindigi fallback."
+              );
+            }
+          } catch (err) {
+            console.error("QR Zindigi external inquiry failed:", err.message);
+          }
+        }
+
         // === Final status processing (after mapped or fallback) ===
         console.log("Final Inquiry API Response:", inquiryResponse?.data);
 
@@ -545,17 +642,71 @@ const handleTransactionAndPayout = async (chatId, order, type = "transaction") =
           inquiryStatus = (inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus || inquiryResponse?.data?.data?.paymentStatus || inquiryResponse?.data?.paymentStatus)?.toLowerCase();
           inquiryStatusCode = inquiryResponse?.data?.statusCode;
         } else if (providerName === "qr") {
-          // QR/BankIslami: data.paymentStatus
-          inquiryStatus = (inquiryResponse?.data?.data?.paymentStatus || inquiryResponse?.data?.paymentStatus || inquiryResponse?.data?.data?.transactionStatus || inquiryResponse?.data?.transactionStatus || inquiryResponse?.data?.data?.responseMessage)?.toLowerCase();
-          inquiryStatusCode = inquiryResponse?.data?.statusCode;
+          const body = inquiryResponse?.data;
+          let nested = body?.data;
+          if (typeof nested === "string") {
+            try {
+              nested = JSON.parse(nested);
+            } catch (_) {
+              nested = undefined;
+            }
+          }
+          const tx0 = body?.transactions?.[0];
+
+          // Zindigi external wrapped success:
+          // { success, data: { success, responseCode "00", paymentStatus / responseMessage "paid" }, statusCode 200 }
+          const zindigiWrappedOk =
+            body?.success === true &&
+            nested &&
+            nested.success === true &&
+            nested.responseCode === "00";
+          let resolvedFromZindigi;
+          if (zindigiWrappedOk) {
+            const ps = String(nested.paymentStatus || "").toLowerCase().trim();
+            const rm = String(nested.responseMessage || "").toLowerCase().trim();
+            if (ps === "paid" || rm === "paid") resolvedFromZindigi = "paid";
+            else if (ps === "completed" || rm === "completed") resolvedFromZindigi = "completed";
+            else if (ps === "pending" || rm === "pending") resolvedFromZindigi = "pending";
+            else if (ps === "failed" || rm === "failed") resolvedFromZindigi = "failed";
+            else if (ps) resolvedFromZindigi = ps;
+            else if (rm) resolvedFromZindigi = rm;
+          }
+
+          inquiryStatus = (
+            resolvedFromZindigi ||
+            nested?.paymentStatus ||
+            body?.paymentStatus ||
+            nested?.transactionStatus ||
+            body?.transactionStatus ||
+            tx0?.status ||
+            nested?.responseMessage ||
+            body?.responseMessage ||
+            tx0?.response_message
+          )?.toLowerCase?.();
+          inquiryStatusCode = body?.statusCode;
         }
 
         console.log("Parsed Status:", inquiryStatus, "| Code:", inquiryStatusCode);
 
         if (inquiryStatus === "completed" || inquiryStatus == 'paid') {
-          await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
-          console.log(`Transaction ${merchantTransactionId} marked as Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
-          await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`);
+          try {
+            await axiosInstance.post(SETTLE_API_URL, { transactionId: merchantTransactionId });
+            console.log(`Transaction ${merchantTransactionId} marked as Completed (settled).\nTxnID: ${txn_id}.\nDate: ${date_time}`);
+          } catch (error) {
+            console.error("Error calling settle API:", error.response?.data || error.message);
+          }
+          try {
+            const callbackResponse = await axiosInstance.post(CALLBACK_API_URL, {
+              transactionIds: [merchantTransactionId],
+            });
+            console.log("Payin callback API Response:", callbackResponse.data);
+          } catch (error) {
+            console.error("Error calling payin callback API:", error.response?.data || error.message);
+          }
+          await bot.sendMessage(
+            chatId,
+            `Transaction ${merchantTransactionId}: Completed.\nTxnID: ${txn_id}.\nDate: ${date_time}`
+          );
         } else if (inquiryStatus === "pending") {
           console.log(`Transaction ${merchantTransactionId} is pending.`);
           await bot.sendMessage(chatId, `Transaction ${merchantTransactionId}: Pending.`);

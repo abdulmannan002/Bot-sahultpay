@@ -8,7 +8,7 @@ const FormData = require('form-data');
 // Configuration
 const config = {
     telegram: {
-        botToken: "8125987558:AAHcWxHEqTkqJIoZestOeWY3kOYKGgFVTSU",
+        botToken: "8125987558:AAEzgei-cWQy0J4wqVjS0JhlRO-DzWtw4TA",
         userId: '-1002662637300'
     },
     api: {
